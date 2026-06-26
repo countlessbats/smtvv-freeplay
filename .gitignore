@@ -1,0 +1,17 @@
+# Python bytecode cache
+__pycache__/
+*.pyc
+
+# Patcher output / backups (created in the game folder, never here)
+*.patched
+*.original
+*.pak
+
+# Build output
+dist/
+build/
+
+# Flight module build artifacts (prebuilt flight/xinput1_3.dll IS committed)
+flight/*.obj
+flight/*.exp
+flight/*.lib
