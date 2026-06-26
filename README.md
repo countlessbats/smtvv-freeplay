@@ -57,6 +57,30 @@ Project/Binaries/Win64/SMT5V-Win64-Shipping.exe.patched
 Then it installs the patched executable over the live executable. If Superjump is
 selected, it also copies `xinput1_3.dll` into `Project/Binaries/Win64/`.
 
+## Steam Deck / Linux
+
+Steam Deck runs the same Steam Windows build through Proton, so the patches are
+identical — only the installer differs (Linux can't run the `.bat`). In **Desktop
+Mode**, open a terminal (Konsole) in this folder and run:
+
+```bash
+chmod +x install.sh
+./install.sh                 # all patches
+./install.sh --no-miracles   # skip individual patches (same --no-* flags)
+```
+
+Uninstall with `./uninstall.sh`. (`python3`, used by the patcher, ships with
+Desktop Mode.)
+
+The executable patches (Reusable Essences, Leyline Auto-Heal, Miman Reveal, NG+
+Miracles) work as-is under Proton. **Superjump** additionally needs a Proton DLL
+override so the proxy DLL loads — add this to the game's Steam **Launch Options**
+(Properties → General):
+
+```text
+WINEDLLOVERRIDES="xinput1_3=n,b" %command%
+```
+
 ## Manual Usage
 
 ```powershell
