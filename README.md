@@ -23,13 +23,17 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
 ## Requirements
 
-- Shin Megami Tensei V: Vengeance, Steam / Windows
+- Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
+  Steam Deck / Linux (via Proton). Game Pass / Microsoft Store editions use a
+  different executable and are not supported.
 - No separate Python install is required when using the packaged release.
-  A portable Python runtime is included.
+  A portable Python runtime is included (Windows); on Linux it uses `python3`.
 - `repak` is required only when rebuilding the NG+ miracle data pak from
   extracted game data.
 
-## Install
+See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
+
+## Install (Windows)
 
 1. Place this folder inside or near your SMT5V install directory. The
    installer also searches common Steam library locations automatically,
@@ -65,21 +69,30 @@ Mode**, open a terminal (Konsole) in this folder and run:
 
 ```bash
 chmod +x install.sh
-./install.sh                 # all patches
-./install.sh --no-miracles   # skip individual patches (same --no-* flags)
+./install.sh
+```
+
+With no switches it installs everything. To install only some of the features,
+add a skip-switch for each one you don't want. The switches are --no-essences,
+--no-heal, --no-mimans, --no-miracles, and --no-superjump — you leave out the
+switch for anything you want to keep. For example, to install only Reusable
+Essences and Miman Reveal (skipping the other three):
+
+```bash
+./install.sh --no-heal --no-miracles --no-superjump
 ```
 
 Uninstall with `./uninstall.sh`. (`python3`, used by the patcher, ships with
 Desktop Mode.)
 
-The executable patches (Reusable Essences, Leyline Auto-Heal, Miman Reveal, NG+
-Miracles) work as-is under Proton. **Superjump** additionally needs a Proton DLL
-override so the proxy DLL loads — add this to the game's Steam **Launch Options**
-(Properties → General):
+**Superjump** additionally needs a Proton DLL override so the proxy DLL loads —
+add this to the game's Steam **Launch Options** (Properties → General):
 
 ```text
 WINEDLLOVERRIDES="xinput1_3=n,b" %command%
 ```
+
+The other four patches work without it; it's only needed for Superjump.
 
 ## Manual Usage
 
@@ -102,7 +115,8 @@ New work should use `patch_smtvv_freeplay.py`.
 
 ## Uninstall
 
-Run `uninstall.bat`, or run `install.bat` and choose uninstall.
+Run `uninstall.bat` (Windows) or `./uninstall.sh` (Linux), or run `install.bat`
+and choose uninstall.
 
 You can also restore through Steam:
 
