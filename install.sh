@@ -26,6 +26,9 @@ find_game() {
         "$HOME/.steam/steam/steamapps/common/SMT5V" \
         "$HOME/.steam/root/steamapps/common/SMT5V" \
         /run/media/*/steamapps/common/SMT5V \
+        /run/media/*/SteamLibrary/steamapps/common/SMT5V \
+        /run/media/*/*/steamapps/common/SMT5V \
+        /run/media/*/*/SteamLibrary/steamapps/common/SMT5V \
         "$HERE/.." "$HERE/../.." ; do
         if [ -f "$c/Project/Binaries/Win64/$EXE" ]; then
             ( cd "$c" && pwd ); return 0
@@ -95,6 +98,8 @@ if [ "$DO_SUPERJUMP" = "1" ] && [ -f "$HERE/superjump/xinput1_3.dll" ]; then
     echo
     echo "  (The executable patches above work WITHOUT this; it's Superjump-only.)"
     echo "  ----------------------------------------------------------------"
+elif [ "$DO_SUPERJUMP" = "0" ]; then
+    echo "Skipping Superjump module (--no-superjump)."
 fi
 
 echo

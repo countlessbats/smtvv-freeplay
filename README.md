@@ -64,35 +64,49 @@ selected, it also copies `xinput1_3.dll` into `Project/Binaries/Win64/`.
 ## Steam Deck / Linux
 
 Steam Deck runs the same Steam Windows build through Proton, so the patches are
-identical — only the installer differs (Linux can't run the `.bat`). In **Desktop
-Mode**, open a terminal (Konsole) in this folder and run:
+identical. Only the installer differs. In **Desktop Mode**, open the extracted
+`SMTVV Freeplay` folder in a terminal (Konsole), or `cd` into it, and run:
 
 ```bash
 chmod +x install.sh
 ./install.sh
 ```
 
-With no switches it installs everything. To install only some of the features,
-add a skip-switch for each one you don't want. The switches are --no-essences,
---no-heal, --no-mimans, --no-miracles, and --no-superjump — you leave out the
-switch for anything you want to keep. For example, to install only Reusable
-Essences and Miman Reveal (skipping the other three):
+With no switches, it installs all five features. To install only some of them,
+add a skip-switch for each feature you do **not** want:
+
+```text
+--no-essences
+--no-heal
+--no-mimans
+--no-miracles
+--no-superjump
+```
+
+For example, to install only Reusable Essences and Miman Reveal, skipping
+Leyline Auto-Heal, NG+ Miracles, and Superjump/Flight:
 
 ```bash
 ./install.sh --no-heal --no-miracles --no-superjump
 ```
 
+You leave out the switch for anything you want to keep, and add the switch for
+anything you want to skip. If the script can't find the game automatically, it
+will ask you to paste your SMT5V folder path.
+
 Uninstall with `./uninstall.sh`. (`python3`, used by the patcher, ships with
 Desktop Mode.)
 
-**Superjump** additionally needs a Proton DLL override so the proxy DLL loads —
-add this to the game's Steam **Launch Options** (Properties → General):
+Extra step, required **only** if you installed Superjump/Flight: add a Proton DLL
+override so the mod's DLL loads. In Steam, right-click SMT5V:V → Properties →
+General → Launch Options, and set:
 
 ```text
 WINEDLLOVERRIDES="xinput1_3=n,b" %command%
 ```
 
-The other four patches work without it; it's only needed for Superjump.
+If you used `--no-superjump`, do **not** add that launch option. The other four
+patches work without it.
 
 ## Manual Usage
 

@@ -27,13 +27,14 @@ Superjump works as-is on Windows — no extra step.
 
 ## Steam Deck / Linux
 
-The Deck runs the same Steam build through Proton, so the patches are identical —
-only the installer differs.
+The Deck runs the same Steam build through Proton, so the patches are identical.
+Only the installer differs.
 
 1. Download and **extract** the zip.
 2. On Steam Deck, switch to **Desktop Mode**.
-3. Open the extracted folder in a terminal (**Konsole**), or `cd` into it.
-4. Install:
+3. Open the extracted `SMTVV Freeplay` folder in a terminal (**Konsole**), or
+   `cd` into it.
+4. Run:
 
    ```bash
    chmod +x install.sh
@@ -41,29 +42,39 @@ only the installer differs.
    ```
 
    With no switches, this installs all five features. To install only some of
-   them, add a skip-switch for each one you don't want. The switches are
-   --no-essences, --no-heal, --no-mimans, --no-miracles, and --no-superjump —
-   you leave out the switch for anything you want to keep.
+   them, add a skip-switch for each feature you do **not** want:
+
+   ```text
+   --no-essences
+   --no-heal
+   --no-mimans
+   --no-miracles
+   --no-superjump
+   ```
 
    For example, to install **only Reusable Essences and Miman Reveal** (skipping
-   Leyline Auto-Heal, NG+ Miracles, and Superjump):
+   Leyline Auto-Heal, NG+ Miracles, and Superjump/Flight):
 
    ```bash
    ./install.sh --no-heal --no-miracles --no-superjump
    ```
 
+   You leave out the switch for anything you want to keep, and add the switch
+   for anything you want to skip.
+
    If the script can't find the game automatically, it will ask you to paste your
    SMT5V folder path.
 
-5. **Extra step — required for Superjump only.** Proton needs a DLL override so
-   the mod's proxy DLL loads. In Steam, right-click SMT5V:V → **Properties →
-   General → Launch Options**, and set:
+5. **Extra step — required only if you installed Superjump/Flight.** Add a Proton
+   DLL override so the mod's DLL loads. In Steam, right-click SMT5V:V →
+   **Properties → General → Launch Options**, and set:
 
    ```
    WINEDLLOVERRIDES="xinput1_3=n,b" %command%
    ```
 
-   The other four patches work **without** this; it is only needed for Superjump.
+   If you used `--no-superjump`, do **not** add that launch option. The other
+   four patches work without it.
 
 6. Launch the game from Steam (Game Mode or Desktop).
 
