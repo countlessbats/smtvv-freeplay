@@ -16,12 +16,6 @@ Applies quality-of-life patches to the game executable and optional data paks:
   4. NG+ Miracles  -- selected NG+ miracles are visible and purchasable
      before clearing the game.
 
-Note on Flight:
-
-  * Flight is a runtime DLL (xinput1_3.dll), not an executable patch, so it is
-    deployed by install.bat (copied into Project/Binaries/Win64), not by this
-    script. This patcher only handles the executable / pak patches above.
-
 Executable patches share the same large CC cave in .rdata.
 
 Usage

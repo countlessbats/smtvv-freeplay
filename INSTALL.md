@@ -1,8 +1,7 @@
 # SMTVV Freeplay — Installation
 
 A quality-of-life patch bundle for *Shin Megami Tensei V: Vengeance*: Reusable
-Essences, Leyline Auto-Heal, Miman Reveal, NG+ Miracles From Start, and Superjump
-(hold B / SPACE to fly).
+Essences, Leyline Auto-Heal, Miman Reveal, and NG+ Miracles From Start.
 
 **Requirements:** the **Steam** version of the game, on Windows or Steam Deck /
 Linux (via Proton). Close the game before installing. Game Pass / Microsoft Store
@@ -20,8 +19,6 @@ editions use a different executable and are not supported.
    asked (Steam → right-click SMT5V:V → Manage → Browse local files → copy the
    path from the address bar).
 6. Launch the game from Steam.
-
-Superjump works as-is on Windows — no extra step.
 
 ---
 
@@ -41,7 +38,7 @@ Only the installer differs.
    ./install.sh
    ```
 
-   With no switches, this installs all five features. To install only some of
+   With no switches, this installs all four features. To install only some of
    them, add a skip-switch for each feature you do **not** want:
 
    ```text
@@ -49,14 +46,13 @@ Only the installer differs.
    --no-heal
    --no-mimans
    --no-miracles
-   --no-superjump
    ```
 
    For example, to install **only Reusable Essences and Miman Reveal** (skipping
-   Leyline Auto-Heal, NG+ Miracles, and Superjump/Flight):
+   Leyline Auto-Heal and NG+ Miracles):
 
    ```bash
-   ./install.sh --no-heal --no-miracles --no-superjump
+   ./install.sh --no-heal --no-miracles
    ```
 
    You leave out the switch for anything you want to keep, and add the switch
@@ -65,28 +61,21 @@ Only the installer differs.
    If the script can't find the game automatically, it will ask you to paste your
    SMT5V folder path.
 
-5. **Extra step — required only if you installed Superjump/Flight.** Add a Proton
-   DLL override so the mod's DLL loads. In Steam, right-click SMT5V:V →
-   **Properties → General → Launch Options**, and set:
-
-   ```
-   WINEDLLOVERRIDES="xinput1_3=n,b" %command%
-   ```
-
-   If you used `--no-superjump`, do **not** add that launch option. The other
-   four patches work without it.
-
-6. Launch the game from Steam (Game Mode or Desktop).
+5. Launch the game from Steam (Game Mode or Desktop).
 
 ---
 
 ## Uninstall
 
 - **Windows:** run `install.bat` → **[3] Uninstall**, or run `uninstall.bat`.
-- **Steam Deck / Linux:** run `./uninstall.sh` (and remove the launch option).
+- **Steam Deck / Linux:** run `./uninstall.sh`.
 - **Either:** Steam → SMT5V:V → Properties → Installed Files → **Verify integrity
   of game files** restores the original executable.
 
 The installer backs up your original executable as
 `SMT5V-Win64-Shipping.exe.original` and does not touch save data, so it is fully
 reversible.
+
+If you previously installed an older build with Superjump, remove the old
+`WINEDLLOVERRIDES="xinput1_3=n,b" %command%` launch option. The current
+installers also remove the known legacy Superjump DLL when they find it.

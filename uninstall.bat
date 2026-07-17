@@ -42,14 +42,28 @@ echo  Restoring original executable...
 copy /Y "%BINDIR%\%EXE%.original" "%BINDIR%\%EXE%" >nul
 
 if exist "%BINDIR%\xinput1_3.dll" (
-    echo  Removing Superjump module ^(xinput1_3.dll^)...
-    del /Q "%BINDIR%\xinput1_3.dll"
+    call :remove_legacy_superjump
 )
 
 echo.
 echo  ============================================================
 echo   DONE!  Original executable restored.
-echo   Freeplay patches and Superjump module are now removed.
+echo   Freeplay patches are now removed.
 echo  ============================================================
 echo.
 pause
+exit /b 0
+
+:remove_legacy_superjump
+set "LEGACY_SUPERJUMP_SHA256=4D51DC377C15006EE4903DE265CCDA3514900A059D2019498B66EE9DCC56B819"
+set "MATCHED_SUPERJUMP="
+for /f "usebackq delims=" %%H in (`certutil -hashfile "%BINDIR%\xinput1_3.dll" SHA256 ^| findstr /i "%LEGACY_SUPERJUMP_SHA256%"`) do set "MATCHED_SUPERJUMP=1"
+if defined MATCHED_SUPERJUMP (
+    echo  Removing legacy Superjump module ^(xinput1_3.dll^)...
+    del /Q "%BINDIR%\xinput1_3.dll"
+) else (
+    echo  NOTE: Found xinput1_3.dll, but it does not match the old Superjump module.
+    echo        Leaving it in place.
+)
+set "MATCHED_SUPERJUMP="
+exit /b 0

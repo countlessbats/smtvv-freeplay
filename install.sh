@@ -9,15 +9,15 @@
 #     chmod +x install.sh
 #     ./install.sh                 # all patches
 #     ./install.sh --no-miracles   # skip a patch (see flags below)
-#     ./install.sh --no-superjump  # skip the Superjump DLL
 #
 # Patch flags are passed through to the patcher:
-#   --no-essences  --no-heal  --no-mimans  --no-miracles  --no-superjump
+#   --no-essences  --no-heal  --no-mimans  --no-miracles
 #
 set -euo pipefail
 
 EXE="SMT5V-Win64-Shipping.exe"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LEGACY_SUPERJUMP_SHA256="4d51dc377c15006ee4903de265ccda3514900a059d2019498b66ee9dcc56b819"
 
 find_game() {
     local c
@@ -61,12 +61,12 @@ if [ -z "$PY" ]; then
     exit 1
 fi
 
-# Separate our own --no-superjump from the patcher's flags.
 PATCH_FLAGS=()
-DO_SUPERJUMP=1
 for a in "$@"; do
     case "$a" in
-        --no-superjump) DO_SUPERJUMP=0 ;;
+        --no-superjump)
+            echo "Note: Superjump has been removed; ignoring deprecated --no-superjump."
+            ;;
         *) PATCH_FLAGS+=("$a") ;;
     esac
 done
@@ -85,21 +85,20 @@ if [ -f "$BIN/$EXE.patched" ]; then
     cp -f "$BIN/$EXE.patched" "$BIN/$EXE"
 fi
 
-if [ "$DO_SUPERJUMP" = "1" ] && [ -f "$HERE/superjump/xinput1_3.dll" ]; then
-    echo "Installing Superjump module (xinput1_3.dll)..."
-    cp -f "$HERE/superjump/xinput1_3.dll" "$BIN/xinput1_3.dll"
-    echo
-    echo "  ----------------------------------------------------------------"
-    echo "  Steam Deck / Proton note for SUPERJUMP only:"
-    echo "  A Proton DLL override is required for the proxy DLL to load."
-    echo "  In Steam: SMT5V -> Properties -> General -> Launch Options, set:"
-    echo
-    echo '      WINEDLLOVERRIDES="xinput1_3=n,b" %command%'
-    echo
-    echo "  (The executable patches above work WITHOUT this; it's Superjump-only.)"
-    echo "  ----------------------------------------------------------------"
-elif [ "$DO_SUPERJUMP" = "0" ]; then
-    echo "Skipping Superjump module (--no-superjump)."
+if [ -f "$BIN/xinput1_3.dll" ]; then
+    if command -v sha256sum >/dev/null 2>&1; then
+        existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"
+        if [ "$existing_hash" = "$LEGACY_SUPERJUMP_SHA256" ]; then
+            echo "Removing legacy Superjump module (xinput1_3.dll)..."
+            rm -f "$BIN/xinput1_3.dll"
+        else
+            echo "NOTE: Found xinput1_3.dll, but it does not match the old Superjump module."
+            echo "      Leaving it in place."
+        fi
+    else
+        echo "NOTE: Found xinput1_3.dll, but sha256sum is unavailable."
+        echo "      Leaving it in place."
+    fi
 fi
 
 echo

@@ -19,7 +19,6 @@ if "%CHOICE%"=="2" goto :individual
 
 :: Default: all patches
 set "FLAGS="
-set "DO_SUPERJUMP=1"
 goto :run_patcher
 
 :individual
@@ -30,15 +29,12 @@ set /p P1="   Reusable Essences (essences not consumed)? [Y/n]: "
 set /p P2="   Leyline Auto-Heal (full HP/MP on leyline use)? [Y/n]: "
 set /p P3="   Miman Reveal (all miman positions shown on map)? [Y/n]: "
 set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
-set /p P5="   Superjump (hold B / SPACE to fly)? [Y/n]: "
 
 set "FLAGS="
-set "DO_SUPERJUMP=1"
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
 if /i "%P2%"=="n" set "FLAGS=!FLAGS! --no-heal"
 if /i "%P3%"=="n" set "FLAGS=!FLAGS! --no-mimans"
 if /i "%P4%"=="n" set "FLAGS=!FLAGS! --no-miracles"
-if /i "%P5%"=="n" set "DO_SUPERJUMP=0"
 goto :run_patcher
 
 :run_patcher
@@ -88,15 +84,7 @@ if exist "%BINDIR%\%EXE%.patched" (
     copy /Y "%BINDIR%\%EXE%.patched" "%BINDIR%\%EXE%" >nul
 )
 
-:: --- Superjump module (runtime DLL proxy, not an executable patch) ---
-if "%DO_SUPERJUMP%"=="1" (
-    if exist "%~dp0superjump\xinput1_3.dll" (
-        echo  Installing Superjump module ^(xinput1_3.dll^)...
-        copy /Y "%~dp0superjump\xinput1_3.dll" "%BINDIR%\xinput1_3.dll" >nul
-    ) else (
-        echo  NOTE: superjump\xinput1_3.dll not found - skipping Superjump.
-    )
-)
+call :remove_legacy_superjump
 
 echo.
 echo  ============================================================
@@ -126,11 +114,25 @@ if exist "!BINDIR!\%EXE%.original" (
     echo  No backup found. Use Steam ^> Verify Integrity instead.
 )
 if exist "!BINDIR!\xinput1_3.dll" (
-    echo  Removing Superjump module...
-    del /Q "!BINDIR!\xinput1_3.dll" >nul 2>nul
+    call :remove_legacy_superjump
 )
 echo.
 pause
+exit /b 0
+
+:remove_legacy_superjump
+if not exist "!BINDIR!\xinput1_3.dll" exit /b 0
+set "LEGACY_SUPERJUMP_SHA256=4D51DC377C15006EE4903DE265CCDA3514900A059D2019498B66EE9DCC56B819"
+set "MATCHED_SUPERJUMP="
+for /f "usebackq delims=" %%H in (`certutil -hashfile "!BINDIR!\xinput1_3.dll" SHA256 ^| findstr /i "!LEGACY_SUPERJUMP_SHA256!"`) do set "MATCHED_SUPERJUMP=1"
+if defined MATCHED_SUPERJUMP (
+    echo  Removing legacy Superjump module ^(xinput1_3.dll^)...
+    del /Q "!BINDIR!\xinput1_3.dll" >nul 2>nul
+) else (
+    echo  NOTE: Found xinput1_3.dll, but it does not match the old Superjump module.
+    echo        Leaving it in place.
+)
+set "MATCHED_SUPERJUMP="
 exit /b 0
 
 :: ==========================================================================

@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
 # SMTVV Freeplay - Linux / Steam Deck uninstaller.
-# Restores the original executable and removes the Superjump DLL.
+# Restores the original executable and removes the legacy Superjump DLL.
 #
 set -euo pipefail
 
 EXE="SMT5V-Win64-Shipping.exe"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LEGACY_SUPERJUMP_SHA256="4d51dc377c15006ee4903de265ccda3514900a059d2019498b66ee9dcc56b819"
 
 find_game() {
     local c
@@ -41,8 +42,18 @@ else
 fi
 
 if [ -f "$BIN/xinput1_3.dll" ]; then
-    echo "Removing Superjump module (xinput1_3.dll)..."
-    rm -f "$BIN/xinput1_3.dll"
+    if command -v sha256sum >/dev/null 2>&1; then
+        existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"
+        if [ "$existing_hash" = "$LEGACY_SUPERJUMP_SHA256" ]; then
+            echo "Removing legacy Superjump module (xinput1_3.dll)..."
+            rm -f "$BIN/xinput1_3.dll"
+        else
+            echo "Found xinput1_3.dll, but it does not match the old Superjump module."
+            echo "Leaving it in place."
+        fi
+    else
+        echo "Found xinput1_3.dll, but sha256sum is unavailable. Leaving it in place."
+    fi
 fi
 
-echo "Done. (You can also remove the WINEDLLOVERRIDES launch option.)"
+echo "Done. If you previously added WINEDLLOVERRIDES for Superjump, remove that launch option."
