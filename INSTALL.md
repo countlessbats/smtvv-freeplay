@@ -69,12 +69,20 @@ Only the installer differs.
 
 - **Windows:** run `install.bat` → **[3] Uninstall**, or run `uninstall.bat`.
 - **Steam Deck / Linux:** run `./uninstall.sh`.
-- **Either:** Steam → SMT5V:V → Properties → Installed Files → **Verify integrity
-  of game files** restores the original executable.
+
+The uninstall scripts restore the original executable and remove the mod's
+NG+ miracle data pak (`pakchunk99_NGPlusMiracles_P.pak`).
+
+Steam → SMT5V:V → Properties → Installed Files → **Verify integrity of game
+files** also restores the original executable, but leaves the miracle data pak
+behind — if you uninstall that way, also delete
+`Project/Content/Paks/pakchunk99_NGPlusMiracles_P.pak`, or just run the
+uninstall script instead.
 
 The installer backs up your original executable as
 `SMT5V-Win64-Shipping.exe.original` and does not touch save data, so it is fully
-reversible.
+reversible. Re-running the installer at any time is safe: it always rebuilds
+from the backed-up original and cleans up anything left by a previous install.
 
 If you previously installed an older build with Superjump, remove the old
 `WINEDLLOVERRIDES="xinput1_3=n,b" %command%` launch option. The current

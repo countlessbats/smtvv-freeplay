@@ -1,1 +1,4 @@
 *.sh text eol=lf
+*.bat text eol=crlf
+repak/win64/repak.exe binary
+repak/linux64/repak binary

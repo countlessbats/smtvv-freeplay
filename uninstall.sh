@@ -41,6 +41,12 @@ else
     echo "Verify integrity of game files to restore the executable."
 fi
 
+MIRACLE_PAK="$GAMEDIR/Project/Content/Paks/pakchunk99_NGPlusMiracles_P.pak"
+if [ -f "$MIRACLE_PAK" ]; then
+    echo "Removing NG+ miracle data pak..."
+    rm -f "$MIRACLE_PAK"
+fi
+
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"

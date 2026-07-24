@@ -43,6 +43,15 @@ EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
 STEAM_APPID = "1546720"
 
+# NG+ miracle data pak: built at install time from the user's own game data.
+# GodParameterDataTable is extracted from pakchunk0 with the bundled repak
+# tool, edited, and repacked as a small override pak.
+PAKS_SUBPATH = os.path.join("Project", "Content", "Paks")
+SOURCE_PAK = "pakchunk0-WindowsNoEditor.pak"
+MIRACLE_PAK = "pakchunk99_NGPlusMiracles_P.pak"
+GP_TABLE_ENTRY = ("Project/Content/Blueprints/Gamedata/BinTable/"
+                  "GodParameter/Table/GodParameterDataTable")
+
 # Essence item-ID range (inclusive)
 ESSENCE_ID_MIN = 311   # 0x137
 ESSENCE_ID_MAX = 615   # 0x267
@@ -150,6 +159,100 @@ def locate_game_dir(hint: str | None = None) -> str | None:
 
     return None
 
+
+def find_repak() -> str | None:
+    """Locate the bundled repak binary (fall back to one on PATH)."""
+    here = os.path.abspath(os.path.dirname(__file__))
+    if platform.system() == "Windows":
+        bundled = os.path.join(here, "repak", "win64", "repak.exe")
+    else:
+        bundled = os.path.join(here, "repak", "linux64", "repak")
+    if os.path.isfile(bundled):
+        return bundled
+    return shutil.which("repak")
+
+
+def run_repak(repak: str, *args: str) -> bytes:
+    """Run repak, returning stdout bytes. Raises RuntimeError on failure."""
+    import subprocess
+    try:
+        proc = subprocess.run([repak, *args], capture_output=True)
+    except OSError as exc:
+        raise RuntimeError(f"could not run repak: {exc}") from exc
+    if proc.returncode != 0:
+        err = proc.stderr.decode(errors="replace").strip()
+        raise RuntimeError(f"repak {args[0]} failed: {err or 'unknown error'}")
+    return proc.stdout
+
+
+def build_miracle_pak(game_dir: str) -> None:
+    """Extract GodParameterDataTable from the user's pakchunk0, apply the
+    NG+ edits (F5=1, F6=0 for the unlocked miracle rows), and pack it as
+    an override pak. Raises RuntimeError with a user-facing reason."""
+    import tempfile
+
+    paks_dir = os.path.join(game_dir, PAKS_SUBPATH)
+    src_pak = os.path.join(paks_dir, SOURCE_PAK)
+    if not os.path.isfile(src_pak):
+        raise RuntimeError(f"{SOURCE_PAK} not found in {paks_dir}")
+
+    repak = find_repak()
+    if repak is None:
+        raise RuntimeError("bundled repak tool not found (repak/ folder "
+                           "missing from the mod bundle)")
+
+    def get_entry(suffix: str) -> bytes:
+        entry = GP_TABLE_ENTRY + suffix
+        try:
+            return run_repak(repak, "get", src_pak, entry)
+        except RuntimeError:
+            # Fall back to searching the raw pak listing (no prefix
+            # stripping) in case the entry path layout differs from the
+            # expected mount point.
+            listing = run_repak(repak, "list", "--strip-prefix", "",
+                                src_pak)
+            base = ("GodParameterDataTable" + suffix).encode()
+            for line in listing.splitlines():
+                if line.strip().endswith(base):
+                    return run_repak(repak, "get", "--strip-prefix", "",
+                                     src_pak, line.strip().decode())
+            raise
+
+    gp_data = bytearray(get_entry(".uexp"))
+    gp_uasset = get_entry(".uasset")
+
+    needed = 89 + max(22, 23, 30, 31) * 20 + 12
+    if len(gp_data) < needed:
+        raise RuntimeError(f"GodParameterDataTable.uexp is smaller than "
+                           f"expected ({len(gp_data)} bytes) — game update?")
+
+    for idx in [22, 23, 30, 31]:
+        goff = 89 + idx * 20
+        gp_data[goff + 7] = 1
+        struct.pack_into("<I", gp_data, goff + 8, 0)
+
+    staging = tempfile.mkdtemp(prefix="smtvv_gp_")
+    try:
+        table_dir = os.path.join(staging, *GP_TABLE_ENTRY.split("/")[:-1])
+        os.makedirs(table_dir, exist_ok=True)
+        with open(os.path.join(table_dir, "GodParameterDataTable.uexp"),
+                  "wb") as fh:
+            fh.write(gp_data)
+        with open(os.path.join(table_dir, "GodParameterDataTable.uasset"),
+                  "wb") as fh:
+            fh.write(gp_uasset)
+
+        pak_out = os.path.join(paks_dir, MIRACLE_PAK)
+        pak_tmp = pak_out + ".tmp"
+        try:
+            run_repak(repak, "pack", "--version", "V11", staging, pak_tmp)
+            os.replace(pak_tmp, pak_out)
+        finally:
+            if os.path.isfile(pak_tmp):
+                os.remove(pak_tmp)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -190,6 +293,24 @@ def main() -> None:
     print(f"  Game folder : {game_dir}")
     print(f"  Executable  : {exe_path}")
     print()
+
+    # ------------------------------------------------------------------
+    # Tidy up state left by earlier installs. The executable is always
+    # rebuilt from the original backup, so the override pak must match
+    # the patches selected *this* run: remove it here and rebuild it
+    # below only if the miracles patch is enabled and succeeds.
+    # ------------------------------------------------------------------
+    stale_pak = os.path.join(game_dir, PAKS_SUBPATH, MIRACLE_PAK)
+    if os.path.isfile(stale_pak):
+        print(f"  Removing previous {MIRACLE_PAK} (rebuilt if selected)")
+        os.remove(stale_pak)
+
+    legacy_extract = os.path.join(game_dir, PAKS_SUBPATH,
+                                  "pakchunk0-WindowsNoEditor")
+    if os.path.isdir(legacy_extract):
+        print(f"  NOTE: extracted game data at "
+              f"Paks{os.sep}pakchunk0-WindowsNoEditor{os.sep} is no longer")
+        print(f"        needed by this mod and can be deleted to free space.")
 
     # Always patch from the original backup if one exists
     source = bak_path if os.path.isfile(bak_path) else exe_path
@@ -412,49 +533,16 @@ def main() -> None:
                   f" + 0x{mc2:08X} ({len(sc_s)}B)")
             print(f"    NOP 666-block : 0x{MIRACLE_666_NOP_ADDR:08X}")
 
-        # 3. Create data pak (F5=1, F6=0, keep original Glory costs)
+        # 3. Build data pak from the user's own game data
+        #    (F5=1, F6=0, keep original Glory costs)
         if miracles_ok:
-            pak_src = os.path.join(game_dir, "Project", "Content", "Paks",
-                        "pakchunk0-WindowsNoEditor")
-            gp_uexp = os.path.join(pak_src, "Project", "Content", "Blueprints",
-                        "Gamedata", "BinTable", "GodParameter", "Table",
-                        "GodParameterDataTable.uexp")
-            gp_uasset = gp_uexp.replace(".uexp", ".uasset")
-
-            if os.path.isfile(gp_uexp):
-                import tempfile
-                with open(gp_uexp, "rb") as fh:
-                    gp_data = bytearray(fh.read())
-
-                for idx in [22, 23, 30, 31]:
-                    goff = 89 + idx * 20
-                    gp_data[goff + 7] = 1
-                    struct.pack_into("<I", gp_data, goff + 8, 0)
-
-                pak_dir = os.path.join(tempfile.gettempdir(), "gp_mod",
-                            "Project", "Content", "Blueprints", "Gamedata",
-                            "BinTable", "GodParameter", "Table")
-                os.makedirs(pak_dir, exist_ok=True)
-
-                uexp_out = os.path.join(pak_dir, "GodParameterDataTable.uexp")
-                uasset_out = os.path.join(pak_dir, "GodParameterDataTable.uasset")
-
-                import subprocess
-                shutil.copy2(gp_uasset, uasset_out)
-
-                with open(uexp_out, "wb") as fh:
-                    fh.write(gp_data)
-
-                pak_root = os.path.join(tempfile.gettempdir(), "gp_mod")
-                pak_out = os.path.join(game_dir, "Project", "Content", "Paks",
-                            "pakchunk99_NGPlusMiracles_P.pak")
-                subprocess.run(["repak", "pack", "--version", "V11",
-                                pak_root, pak_out],
-                               check=True, capture_output=True)
-                print(f"    Data pak      : {os.path.basename(pak_out)}")
-            else:
-                print(f"    WARNING: GodParameterDataTable not extracted — "
-                      f"run repak unpack first")
+            try:
+                build_miracle_pak(game_dir)
+                print(f"    Data pak      : {MIRACLE_PAK}")
+            except RuntimeError as exc:
+                print(f"    WARNING: NG+ miracle data pak not built — {exc}")
+                print(f"             The miracle shop hooks are still "
+                      f"installed, but some NG+ miracles may stay locked.")
 
     # ------------------------------------------------------------------
     # Backup & save
@@ -470,9 +558,8 @@ def main() -> None:
     print()
     print("  " + "-" * 58)
     print("  Next steps:")
-    print("    * Run  install.bat   to activate the mod")
-    print("    * Run  uninstall.bat to restore the original EXE")
-    print("    * Or use Steam -> Verify Integrity to revert any time")
+    print("    * install.bat / install.sh activates the patched EXE")
+    print("    * uninstall.bat / uninstall.sh restores the original")
     print("  " + "-" * 58)
 
 

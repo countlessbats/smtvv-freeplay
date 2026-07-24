@@ -24,8 +24,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
   different executable and are not supported.
 - No separate Python install is required when using the packaged release.
   A portable Python runtime is included (Windows); on Linux it uses `python3`.
-- `repak` is required only when rebuilding the NG+ miracle data pak from
-  extracted game data.
+- Nothing else to download: the [repak](https://github.com/trumank/repak)
+  pak tool used by the NG+ Miracles patch is bundled (`repak/`, MIT/Apache-2.0
+  licensed) for both Windows and Linux/Steam Deck.
 
 See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
@@ -117,19 +118,26 @@ New work should use `patch_smtvv_freeplay.py`.
 ## Uninstall
 
 Run `uninstall.bat` (Windows) or `./uninstall.sh` (Linux), or run `install.bat`
-and choose uninstall.
+and choose uninstall. This restores the original executable and removes the
+NG+ miracle data pak.
 
-You can also restore through Steam:
+You can also restore the executable through Steam:
 
 ```text
 Steam -> SMT5V -> Properties -> Installed Files -> Verify integrity
 ```
 
+Note that Verify Integrity does not remove
+`pakchunk99_NGPlusMiracles_P.pak` (Steam leaves unknown files alone) — use the
+uninstall scripts, or delete that file from `Project/Content/Paks` yourself.
+
 ## Building from source
 
 Nothing needs to be compiled to *use* this bundle — the executable patcher
-(`patch_smtvv_freeplay.py`) is plain Python, and a portable runtime is bundled
-in `python/`.
+(`patch_smtvv_freeplay.py`) is plain Python, a portable runtime is bundled in
+`python/`, and prebuilt [repak](https://github.com/trumank/repak) binaries are
+bundled in `repak/` (win64 + linux64, v0.2.3, dual MIT/Apache-2.0 — see
+`repak/LICENSE-MIT` and `repak/LICENSE-APACHE`).
 
 ## How It Works
 
@@ -154,7 +162,12 @@ The same leyline hook can also loop through Miman save-buffer indexes and call
 ### NG+ Miracles From Start
 
 This combines executable hooks for miracle visibility and purchasability with
-an optional data-pak edit for `GodParameterDataTable`.
+a data-pak edit for `GodParameterDataTable`. The installer extracts the table
+from your own `pakchunk0-WindowsNoEditor.pak` with the bundled `repak` tool,
+applies the edits, and packs the result as
+`Project/Content/Paks/pakchunk99_NGPlusMiracles_P.pak`. No game data is
+redistributed with the mod — everything is derived from your installed copy
+at install time.
 
 ## Compatibility Notes
 
@@ -169,4 +182,6 @@ This project is licensed under the **MIT License** — see [LICENSE](LICENSE).
 You are free to use, modify, and redistribute it.
 
 The bundled portable Python runtime in `python/` is distributed under the Python
-Software Foundation License (see `python/LICENSE.txt`).
+Software Foundation License (see `python/LICENSE.txt`). The bundled `repak`
+tool in `repak/` is distributed under its dual MIT/Apache-2.0 license (see
+`repak/LICENSE-MIT` and `repak/LICENSE-APACHE`).

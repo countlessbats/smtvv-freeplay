@@ -41,6 +41,12 @@ if not exist "%BINDIR%\%EXE%.original" (
 echo  Restoring original executable...
 copy /Y "%BINDIR%\%EXE%.original" "%BINDIR%\%EXE%" >nul
 
+for %%I in ("%BINDIR%\..\..\..") do set "GAMEDIR=%%~fI"
+if exist "%GAMEDIR%\Project\Content\Paks\pakchunk99_NGPlusMiracles_P.pak" (
+    echo  Removing NG+ miracle data pak...
+    del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk99_NGPlusMiracles_P.pak" >nul 2>nul
+)
+
 if exist "%BINDIR%\xinput1_3.dll" (
     call :remove_legacy_superjump
 )

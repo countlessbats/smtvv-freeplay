@@ -74,6 +74,11 @@ done
 echo "Game: $GAMEDIR"
 echo
 
+# Zip extraction can drop the exec bit on the bundled repak tool.
+if [ -f "$HERE/repak/linux64/repak" ]; then
+    chmod +x "$HERE/repak/linux64/repak" 2>/dev/null || true
+fi
+
 "$PY" "$HERE/patch_smtvv_freeplay.py" --game-dir "$GAMEDIR" "${PATCH_FLAGS[@]}"
 
 if [ -f "$BIN/$EXE.patched" ]; then
