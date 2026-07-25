@@ -39,6 +39,8 @@ import sys
 # Constants
 # ---------------------------------------------------------------------------
 
+MOD_VERSION = "5.7.0"
+
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
 STEAM_APPID = "1546720"
@@ -288,7 +290,7 @@ def main() -> None:
     out_path  = exe_path + ".patched"
 
     print("=" * 62)
-    print("  SMT5V: Vengeance - Freeplay Patcher")
+    print(f"  SMT5V: Vengeance - Freeplay Patcher v{MOD_VERSION}")
     print("=" * 62)
     print(f"  Game folder : {game_dir}")
     print(f"  Executable  : {exe_path}")

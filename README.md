@@ -2,6 +2,8 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
+**Current version: 5.7.0**
+
 ## Features
 
 1. **Reusable Essences** - essences are no longer consumed when used.
