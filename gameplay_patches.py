@@ -1,0 +1,239 @@
+"""
+Gameplay patches for the Freeplay patcher: battle consumable refill and
+multi-jump with air control. Each builder writes its code into the shared
+CC cave and returns the next free cave offset, or None if the expected bytes
+were not found (the patch is then skipped).
+"""
+
+from __future__ import annotations
+
+import struct
+
+RDATA_RAW = 0x600
+RDATA_VA  = 0x140001000
+
+
+def va(foff: int) -> int:
+    return RDATA_VA + (foff - RDATA_RAW)
+
+
+def off(v: int) -> int:
+    return v - RDATA_VA + RDATA_RAW
+
+
+class Asm:
+    """Tiny x64 emitter: raw bytes plus rel32 fixups to labels or VAs."""
+
+    def __init__(self, base_va: int):
+        self.base = base_va
+        self.b = bytearray()
+        self.labels: dict[str, int] = {}
+        self.fix: list[tuple[int, str | int]] = []
+
+    def raw(self, hexstr: str) -> "Asm":
+        self.b += bytes.fromhex(hexstr.replace(" ", ""))
+        return self
+
+    def label(self, name: str) -> "Asm":
+        self.labels[name] = len(self.b)
+        return self
+
+    def _rel(self, opcode: str, target: str | int) -> "Asm":
+        self.raw(opcode)
+        self.fix.append((len(self.b), target))
+        self.b += b"\0\0\0\0"
+        return self
+
+    def call(self, t): return self._rel("E8", t)
+    def jmp(self, t):  return self._rel("E9", t)
+    def je(self, t):   return self._rel("0F84", t)
+    def jne(self, t):  return self._rel("0F85", t)
+    def jle(self, t):  return self._rel("0F8E", t)
+
+    def rip(self, opcode: str, label: str) -> "Asm":
+        """Instruction ending in a RIP-relative disp32 to a data label."""
+        return self._rel(opcode, label)
+
+    def f32(self, name: str, value: float) -> "Asm":
+        while len(self.b) % 4:
+            self.b += b"\xCC"
+        self.label(name)
+        self.b += struct.pack("<f", value)
+        return self
+
+    def build(self) -> bytes:
+        for pos, t in self.fix:
+            tgt = self.base + self.labels[t] if isinstance(t, str) else t
+            struct.pack_into("<i", self.b, pos, tgt - (self.base + pos + 4))
+        return bytes(self.b)
+
+
+def _place(data: bytearray, cave_off: int, cave_end: int, code: bytes) -> int:
+    if cave_off + len(code) > cave_end:
+        raise RuntimeError("code cave too small")
+    for i in range(len(code)):
+        assert data[cave_off + i] == 0xCC
+    data[cave_off : cave_off + len(code)] = code
+    return cave_off + ((len(code) + 15) & ~15)
+
+
+def _jmp_site(data: bytearray, site_va: int, dest_va: int, length: int,
+              opcode: int = 0xE9) -> None:
+    o = off(site_va)
+    data[o] = opcode
+    struct.pack_into("<i", data, o + 1, dest_va - (site_va + 5))
+    for i in range(5, length):
+        data[o + i] = 0x90
+
+
+# ---------------------------------------------------------------------------
+# Battle consumable refill
+# ---------------------------------------------------------------------------
+# BattleMainWorkBase::SetNextStep exec thunk (a 5-byte jump into the
+# protected body). After the original runs, if the battle is entering
+# E_BTL_STEP_ENCOUNT (4), every battle-usable item the player has ever
+# obtained is topped up to its carry limit. The other registered copy of
+# this thunk (0x140C27BC0) must stay untouched: redirecting it makes the
+# game exit during startup.
+SETNEXTSTEP_THUNKS = [0x140C2C2D0]
+BTL_STEP_OFF      = 0x260   # m_Step
+BTL_NEXTSTEP_OFF  = 0x262   # m_NextStep
+BTL_STEP_ENCOUNT  = 4
+
+ITEM_GET          = 0x140ACE9A0   # ItemGet(id, count)  (adds)
+ITEM_GET_MAX      = 0x140ACF220   # ItemGetMaxNum(id) -> int
+ITEM_GET_NUM      = 0x140ACF4F0   # ItemGetNum(id) -> int
+ITEM_IS_GOTTEN    = 0x140ACF6F0   # ItemIsGotten(id) -> bool
+ITEM_IS_USEBATTLE = 0x140ACF7C0   # ItemIsUseBattle(id) -> bool
+REFILL_ID_MAX     = 135           # use items are 1..135
+
+
+def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
+    for t in SETNEXTSTEP_THUNKS:
+        if data[off(t)] != 0xE9:
+            return None
+    if data[off(ITEM_IS_USEBATTLE):off(ITEM_IS_USEBATTLE) + 5] != bytes.fromhex("48895c2408"):
+        return None
+    for fn in (ITEM_GET, ITEM_GET_MAX, ITEM_GET_NUM, ITEM_IS_GOTTEN):
+        if data[off(fn)] != 0xE9:
+            return None
+
+    for t in SETNEXTSTEP_THUNKS:
+        orig = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+        a = Asm(va(cave_off))
+        a.raw("53 56 57")                     # push rbx/rsi/rdi
+        a.raw("48 83 EC 20")                  # sub rsp, 20h
+        a.raw("48 89 CB")                     # mov rbx, rcx
+        a.call(orig)                          # original SetNextStep
+        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_ENCOUNT)
+        a.je("refill")
+        a.raw("80 BB").raw(struct.pack("<I", BTL_STEP_OFF).hex()).raw("%02x" % BTL_STEP_ENCOUNT)
+        a.jne("done")
+        a.label("refill")
+        a.raw("BE 01 00 00 00")               # mov esi, 1
+        a.label("loop")
+        a.raw("89 F1").call(ITEM_IS_USEBATTLE).raw("84 C0").je("next")
+        a.raw("89 F1").call(ITEM_IS_GOTTEN).raw("84 C0").je("next")
+        a.raw("89 F1").call(ITEM_GET_MAX).raw("89 C7")          # edi = max
+        a.raw("89 F1").call(ITEM_GET_NUM).raw("29 C7")          # edi -= num
+        a.jle("next")
+        a.raw("89 F1 89 FA").call(ITEM_GET)                     # ItemGet(id, edi)
+        a.label("next")
+        a.raw("FF C6")                                           # inc esi
+        a.raw("81 FE").raw(struct.pack("<I", REFILL_ID_MAX).hex())
+        a.jle("loop")
+        a.label("done")
+        a.raw("48 83 C4 20 5F 5E 5B C3")
+        code = a.build()
+        dest = va(cave_off)
+        cave_off = _place(data, cave_off, cave_end, code)
+        _jmp_site(data, t, dest, 5)
+    return cave_off
+
+
+# ---------------------------------------------------------------------------
+# Multi-jump and air control (PlayerMovementComponent)
+# ---------------------------------------------------------------------------
+PM_ON_GROUND    = 0x1C8   # nonzero while grounded
+PM_JUMPING      = 0x250   # jump in progress
+PM_TAKEOFF      = 0x251   # take-off done (rising phase active)
+PM_JUMP_TIME    = 0x254   # seconds since take-off
+PM_AIR_TIME     = 0x24C
+
+JUMP_VCALL_SITE = 0x140A6869C   # Jump(): call [rax+570h] (grounded check)
+JUMP_VCALL_ORIG = bytes.fromhex("ff907005000084c074")
+AIRSPEED_SITE   = 0x140A6BC00   # airborne max speed: movss xmm0,[rcx+160h]
+AIRSPEED_ORIG   = bytes.fromhex("f30f108160010000")
+INTERP_SITE     = 0x140A6A985   # movss xmm0,[rdi+1BCh] (InputInterpSpeed)
+INTERP_ORIG     = bytes.fromhex("f30f1087bc010000")
+TURN_SITE       = 0x140A6ADEA   # mulss xmm0,[rdi+16Ch] (rotation rate)
+TURN_ORIG       = bytes.fromhex("f30f59876c010000")
+
+AIR_SPEED_MUL   = 1.5
+AIR_INTERP_MUL  = 8.0
+AIR_TURN_MUL    = 8.0
+
+
+def patch_jump(data: bytearray, cave_off: int, cave_end: int) -> int | None:
+    for site, orig in ((JUMP_VCALL_SITE, JUMP_VCALL_ORIG), (AIRSPEED_SITE, AIRSPEED_ORIG),
+                       (INTERP_SITE, INTERP_ORIG), (TURN_SITE, TURN_ORIG)):
+        if bytes(data[off(site):off(site) + len(orig)]) != orig:
+            return None
+
+    def u32(v): return struct.pack("<I", v).hex()
+
+    # Mid-air Jump(): restart the jump arc from the current height.
+    a = Asm(va(cave_off))
+    a.raw("48 83 EC 28 FF 90 70 05 00 00 48 83 C4 28")   # original grounded check
+    a.raw("84 C0").jne("ret")
+    a.raw("80 BB" + u32(PM_ON_GROUND) + "00").jne("fail")
+    for flag in (0x241, 0x242, 0x243):                     # bEnableJump*
+        a.raw("80 BB" + u32(flag) + "00").je("fail")
+    a.raw("C6 83" + u32(PM_JUMPING) + "01")
+    a.raw("C6 83" + u32(PM_TAKEOFF) + "01")
+    a.raw("C7 83" + u32(PM_JUMP_TIME) + "00000000")
+    a.raw("C7 83" + u32(PM_AIR_TIME) + "00000000")
+    a.raw("48 8B 83 B0000000")                             # mov rax,[rbx+B0h]
+    a.raw("F3 0F 10 80 D8010000")                          # movss xmm0,[rax+1D8h]
+    for o in (0x258, 0x25C, 0x260):                        # jump base height
+        a.raw("F3 0F 11 83" + u32(o))
+    a.label("fail")
+    a.raw("31 C0")
+    a.label("ret")
+    a.raw("C3")
+    dest = va(cave_off)
+    cave_off = _place(data, cave_off, cave_end, a.build())
+    _jmp_site(data, JUMP_VCALL_SITE, dest, 6, opcode=0xE8)
+
+    # Airborne max speed x1.5 (this branch only runs off the ground).
+    a = Asm(va(cave_off))
+    a.raw(AIRSPEED_ORIG.hex())
+    a.rip("F3 0F 59 05", "k")
+    a.jmp(AIRSPEED_SITE + 8)
+    a.f32("k", AIR_SPEED_MUL)
+    dest = va(cave_off)
+    cave_off = _place(data, cave_off, cave_end, a.build())
+    _jmp_site(data, AIRSPEED_SITE, dest, 8)
+
+    # Input direction follows the stick much faster in the air.
+    a = Asm(va(cave_off))
+    a.raw(INTERP_ORIG.hex())
+    a.raw("80 BF" + u32(PM_ON_GROUND) + "00").jne("back")
+    a.rip("F3 0F 59 05", "k")
+    a.label("back").jmp(INTERP_SITE + 8)
+    a.f32("k", AIR_INTERP_MUL)
+    dest = va(cave_off)
+    cave_off = _place(data, cave_off, cave_end, a.build())
+    _jmp_site(data, INTERP_SITE, dest, 8)
+
+    # Turn rate: undo the airborne rotation damping.
+    a = Asm(va(cave_off))
+    a.raw(TURN_ORIG.hex())
+    a.raw("80 BF" + u32(PM_ON_GROUND) + "00").jne("back")
+    a.rip("F3 0F 59 05", "k")
+    a.label("back").jmp(TURN_SITE + 8)
+    a.f32("k", AIR_TURN_MUL)
+    dest = va(cave_off)
+    cave_off = _place(data, cave_off, cave_end, a.build())
+    _jmp_site(data, TURN_SITE, dest, 8)
+    return cave_off

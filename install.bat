@@ -30,6 +30,8 @@ set /p P2="   Leyline Auto-Heal (full HP/MP on leyline use)? [Y/n]: "
 set /p P3="   Miman Reveal (all miman positions shown on map)? [Y/n]: "
 set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
 set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
+set /p P6="   Battle Refill (battle items topped up at every battle start)? [Y/n]: "
+set /p P7="   Multi-Jump (jump again in mid-air, faster air control)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -37,6 +39,8 @@ if /i "%P2%"=="n" set "FLAGS=!FLAGS! --no-heal"
 if /i "%P3%"=="n" set "FLAGS=!FLAGS! --no-mimans"
 if /i "%P4%"=="n" set "FLAGS=!FLAGS! --no-miracles"
 if /i "%P5%"=="n" set "FLAGS=!FLAGS! --no-compendium"
+if /i "%P6%"=="n" set "FLAGS=!FLAGS! --no-refill"
+if /i "%P7%"=="n" set "FLAGS=!FLAGS! --no-jump"
 goto :run_patcher
 
 :run_patcher

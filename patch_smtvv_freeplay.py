@@ -20,6 +20,12 @@ Applies quality-of-life patches to the game executable and optional data paks:
      The shared demon-cost formula (used by every compendium price path)
      returns 0.
 
+  6. Battle Refill  -- at the start of every battle, each battle-usable item
+     the player has ever obtained is topped up to its carry limit.
+
+  7. Multi-Jump  -- press jump in mid-air to jump again; faster air movement
+     and near-instant turning while airborne.
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -39,11 +45,14 @@ import shutil
 import struct
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import gameplay_patches  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.1"
+MOD_VERSION = "5.7.2"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -284,6 +293,10 @@ def main() -> None:
                         help="Skip the NG+ Miracles Unlock patch")
     parser.add_argument("--no-compendium", action="store_true",
                         help="Skip the Free Compendium patch")
+    parser.add_argument("--no-refill", action="store_true",
+                        help="Skip the Battle Refill patch")
+    parser.add_argument("--no-jump", action="store_true",
+                        help="Skip the Multi-Jump patch")
     args = parser.parse_args()
 
     do_essences = not args.no_essences
@@ -291,6 +304,8 @@ def main() -> None:
     do_mimans   = not args.no_mimans
     do_miracles = not args.no_miracles
     do_compendium = not args.no_compendium
+    do_refill = not args.no_refill
+    do_jump = not args.no_jump
 
     game_dir = locate_game_dir(args.game_dir)
     if game_dir is None:
@@ -348,7 +363,9 @@ def main() -> None:
                                 ("Heal", do_heal),
                                 ("Mimans", do_mimans),
                                 ("Miracles", do_miracles),
-                                ("Compendium", do_compendium)] if on]
+                                ("Compendium", do_compendium),
+                                ("Refill", do_refill),
+                                ("Jump", do_jump)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -573,6 +590,24 @@ def main() -> None:
             patch_num += 1
             print(f"\n  [{patch_num}/{total}] Free Compendium")
             print(f"    Cost formula  : 0x{DEVIL_COST_OFFSET:08X}  -> 0")
+
+    # ==================================================================
+    # PATCH: Battle Refill / Multi-Jump
+    # ==================================================================
+    cave_end = cave_off + cave_len
+    for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
+                               (do_jump, "Multi-Jump", gameplay_patches.patch_jump)):
+        if not on:
+            continue
+        start = next_cave_off
+        result = builder(data, next_cave_off, cave_end)
+        if result is None:
+            print(f"\n  WARNING: {label} AOB mismatch - skipping")
+            continue
+        next_cave_off = result
+        patch_num += 1
+        print(f"\n  [{patch_num}/{total}] {label}")
+        print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
 
     # ------------------------------------------------------------------
     # Backup & save

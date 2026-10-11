@@ -12,6 +12,7 @@
 #
 # Patch flags are passed through to the patcher:
 #   --no-essences  --no-heal  --no-mimans  --no-miracles  --no-compendium
+#   --no-refill  --no-jump
 #
 set -euo pipefail
 

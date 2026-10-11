@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.1**
+**Current version: 5.7.2**
 
 ## Features
 
@@ -21,6 +21,12 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
 5. **Free Compendium** - summoning a registered demon from the compendium
    costs no Macca.
+
+6. **Battle Refill** - at the start of every battle, each battle-usable item
+   you have ever obtained is topped back up to its carry limit.
+
+7. **Multi-Jump** - press jump again in mid-air to jump again from where you
+   are. While airborne you move 50% faster and turn almost instantly.
 
 ## Requirements
 
@@ -46,7 +52,8 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 2. Double-click `install.bat`.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
-   Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium).
+   Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
+   Battle Refill, Multi-Jump).
 
 The installer backs up the original executable as:
 
@@ -73,7 +80,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all five features. To install only some of them,
+With no switches, it installs all seven features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -82,6 +89,8 @@ add a skip-switch for each feature you do **not** want:
 --no-mimans
 --no-miracles
 --no-compendium
+--no-refill
+--no-jump
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -117,6 +126,8 @@ Optional patch flags:
 --no-mimans
 --no-miracles
 --no-compendium
+--no-refill
+--no-jump
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -170,6 +181,20 @@ The same leyline hook can also loop through Miman save-buffer indexes and call
 
 The demon-cost formula behind every compendium summon price is patched to
 return 0, so the compendium shows and charges 0 Macca.
+
+### Battle Refill
+
+The battle step machine's `SetNextStep` is hooked. When a battle enters its
+encounter step, every item that is usable in battle and has been obtained at
+least once is topped up to its carry limit with the game's own item calls.
+Camp-only consumables such as incenses and Gospels are not refilled.
+
+### Multi-Jump
+
+Pressing jump in mid-air restarts the jump arc from the current height. While
+airborne, the fall-speed cap that governs air movement is raised by 50%, and
+the input and rotation damping applied in the air is lifted so the character
+turns nearly instantly.
 
 ### NG+ Miracles From Start
 
