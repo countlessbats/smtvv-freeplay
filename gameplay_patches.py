@@ -91,14 +91,14 @@ def _jmp_site(data: bytearray, site_va: int, dest_va: int, length: int,
 # ---------------------------------------------------------------------------
 # BattleMainWorkBase::SetNextStep exec thunk (a 5-byte jump into the
 # protected body). After the original runs, if the battle is entering
-# E_BTL_STEP_ENCOUNT (4), every battle-usable item the player has ever
-# obtained is topped up to its carry limit. The other registered copy of
+# E_BTL_STEP_PRE (3) -- the first step of every battle -- every
+# battle-usable item the player has ever obtained is topped up to its carry
+# limit. The other registered copy of
 # this thunk (0x140C27BC0) must stay untouched: redirecting it makes the
 # game exit during startup.
 SETNEXTSTEP_THUNKS = [0x140C2C2D0]
-BTL_STEP_OFF      = 0x260   # m_Step
 BTL_NEXTSTEP_OFF  = 0x262   # m_NextStep
-BTL_STEP_ENCOUNT  = 4
+BTL_STEP_PRE      = 3
 
 ITEM_GET          = 0x140ACE9A0   # ItemGet(id, count)  (adds)
 ITEM_GET_MAX      = 0x140ACF220   # ItemGetMaxNum(id) -> int
@@ -125,11 +125,8 @@ def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
         a.raw("48 83 EC 20")                  # sub rsp, 20h
         a.raw("48 89 CB")                     # mov rbx, rcx
         a.call(orig)                          # original SetNextStep
-        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_ENCOUNT)
-        a.je("refill")
-        a.raw("80 BB").raw(struct.pack("<I", BTL_STEP_OFF).hex()).raw("%02x" % BTL_STEP_ENCOUNT)
+        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_PRE)
         a.jne("done")
-        a.label("refill")
         a.raw("BE 01 00 00 00")               # mov esi, 1
         a.label("loop")
         a.raw("89 F1").call(ITEM_IS_USEBATTLE).raw("84 C0").je("next")
@@ -152,7 +149,7 @@ def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# Multi-jump and air control (PlayerMovementComponent)
+# Hold-to-ascend and air control (PlayerMovementComponent)
 # ---------------------------------------------------------------------------
 PM_ON_GROUND    = 0x1C8   # nonzero while grounded
 PM_JUMPING      = 0x250   # jump in progress
@@ -169,6 +166,22 @@ INTERP_ORIG     = bytes.fromhex("f30f1087bc010000")
 TURN_SITE       = 0x140A6ADEA   # mulss xmm0,[rdi+16Ch] (rotation rate)
 TURN_ORIG       = bytes.fromhex("f30f59876c010000")
 
+ARC_SITE        = 0x140A6C8C6   # rising arc: movss xmm3,[rdi+254h]
+ARC_ORIG        = bytes.fromhex("f30f109f54020000")
+
+# Rising speed is velocityJump + 2*0.5*gravityJump*t (1550 - 4000*t by
+# default). While jump is held the arc time is clamped here, giving a steady
+# climb of about 1070 units/s.
+HOLD_ARC_TIME   = 0.12
+
+IAT_GET_FOREGROUND_WINDOW = 0x1549AF7A8
+IAT_GET_WINDOW_THREAD_PID = 0x1549AF878
+IAT_GET_CURRENT_PID       = 0x1549AEBD0
+IAT_GET_ASYNC_KEY_STATE   = 0x1549AF748
+IAT_XINPUT_GET_STATE      = 0x1549AFDF0   # xinput1_3 ordinal 2
+VK_SPACE        = 0x20
+XINPUT_A_OR_B   = 0x3000
+
 AIR_SPEED_MUL   = 1.5
 AIR_INTERP_MUL  = 8.0
 AIR_TURN_MUL    = 8.0
@@ -176,13 +189,13 @@ AIR_TURN_MUL    = 8.0
 
 def patch_jump(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     for site, orig in ((JUMP_VCALL_SITE, JUMP_VCALL_ORIG), (AIRSPEED_SITE, AIRSPEED_ORIG),
-                       (INTERP_SITE, INTERP_ORIG), (TURN_SITE, TURN_ORIG)):
+                       (INTERP_SITE, INTERP_ORIG), (TURN_SITE, TURN_ORIG), (ARC_SITE, ARC_ORIG)):
         if bytes(data[off(site):off(site) + len(orig)]) != orig:
             return None
 
     def u32(v): return struct.pack("<I", v).hex()
 
-    # Mid-air Jump(): restart the jump arc from the current height.
+    # Mid-air Jump(): start rising from the current height.
     a = Asm(va(cave_off))
     a.raw("48 83 EC 28 FF 90 70 05 00 00 48 83 C4 28")   # original grounded check
     a.raw("84 C0").jne("ret")
@@ -191,7 +204,7 @@ def patch_jump(data: bytearray, cave_off: int, cave_end: int) -> int | None:
         a.raw("80 BB" + u32(flag) + "00").je("fail")
     a.raw("C6 83" + u32(PM_JUMPING) + "01")
     a.raw("C6 83" + u32(PM_TAKEOFF) + "01")
-    a.raw("C7 83" + u32(PM_JUMP_TIME) + "00000000")
+    a.raw("C7 83" + u32(PM_JUMP_TIME) + struct.pack("<f", HOLD_ARC_TIME).hex())
     a.raw("C7 83" + u32(PM_AIR_TIME) + "00000000")
     a.raw("48 8B 83 B0000000")                             # mov rax,[rbx+B0h]
     a.raw("F3 0F 10 80 D8010000")                          # movss xmm0,[rax+1D8h]
@@ -204,6 +217,43 @@ def patch_jump(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     dest = va(cave_off)
     cave_off = _place(data, cave_off, cave_end, a.build())
     _jmp_site(data, JUMP_VCALL_SITE, dest, 6, opcode=0xE8)
+
+    # Rising arc tick: while jump (Space, or pad A/B) is held in the focused
+    # game window, keep the arc time at HOLD_ARC_TIME so the climb continues.
+    a = Asm(va(cave_off))
+    a.raw("50 51 52 4150 4151 4152 4153")                  # save volatiles
+    a.raw("48 81 EC A8000000")
+    for i in range(6):                                      # movdqu [rsp+40h+i*16], xmmi
+        a.raw("F3 0F 7F %02X 24" % (0x84 | (i << 3)) + u32(0x40 + 16 * i))
+    a._rel("FF15", IAT_GET_FOREGROUND_WINDOW)
+    a.raw("48 85 C0").je("restore")
+    a.raw("48 89 C1 48 8D 54 24 30")._rel("FF15", IAT_GET_WINDOW_THREAD_PID)
+    a._rel("FF15", IAT_GET_CURRENT_PID)
+    a.raw("3B 44 24 30").jne("restore")
+    a.raw("B9" + u32(VK_SPACE))._rel("FF15", IAT_GET_ASYNC_KEY_STATE)
+    a.raw("66 A9 0080").jne("held")
+    a.raw("31 C9 48 8D 54 24 20")._rel("FF15", IAT_XINPUT_GET_STATE)
+    a.raw("85 C0").jne("restore")
+    a.raw("0F B7 44 24 24")                                 # wButtons
+    a.raw("A9" + u32(XINPUT_A_OR_B)).je("restore")
+    a.label("held")
+    a.raw("F3 0F 10 87" + u32(PM_JUMP_TIME))
+    a.rip("0F 2F 05", "t")                                  # comiss xmm0, T
+    a._rel("0F86", "restore")                               # t <= T: keep
+    a.rip("F3 0F 10 05", "t")
+    a.raw("F3 0F 11 87" + u32(PM_JUMP_TIME))
+    a.raw("C7 87" + u32(PM_AIR_TIME) + "00000000")
+    a.label("restore")
+    for i in range(6):
+        a.raw("F3 0F 6F %02X 24" % (0x84 | (i << 3)) + u32(0x40 + 16 * i))
+    a.raw("48 81 C4 A8000000")
+    a.raw("415B 415A 4159 4158 5A 59 58")
+    a.raw(ARC_ORIG.hex())
+    a.jmp(ARC_SITE + 8)
+    a.f32("t", HOLD_ARC_TIME)
+    dest = va(cave_off)
+    cave_off = _place(data, cave_off, cave_end, a.build())
+    _jmp_site(data, ARC_SITE, dest, 8)
 
     # Airborne max speed x1.5 (this branch only runs off the ground).
     a = Asm(va(cave_off))

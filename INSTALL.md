@@ -2,7 +2,7 @@
 
 A quality-of-life patch bundle for *Shin Megami Tensei V: Vengeance*: Reusable
 Essences, Leyline Auto-Heal, Miman Reveal, NG+ Miracles From Start, Free Compendium,
-Battle Refill, and Multi-Jump.
+Battle Refill, and Superjump.
 
 **Requirements:** the **Steam** version of the game, on Windows or Steam Deck /
 Linux (via Proton). Close the game before installing. Game Pass / Microsoft Store

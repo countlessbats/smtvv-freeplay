@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.2**
+**Current version: 5.7.3**
 
 ## Features
 
@@ -25,8 +25,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 6. **Battle Refill** - at the start of every battle, each battle-usable item
    you have ever obtained is topped back up to its carry limit.
 
-7. **Multi-Jump** - press jump again in mid-air to jump again from where you
-   are. While airborne you move 50% faster and turn almost instantly.
+7. **Superjump** - hold jump (Space, or A/B on a controller) to keep rising;
+   release to fall. Pressing jump in mid-air starts rising again. While
+   airborne you move 50% faster and turn almost instantly.
 
 ## Requirements
 
@@ -53,7 +54,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Multi-Jump).
+   Battle Refill, Superjump).
 
 The installer backs up the original executable as:
 
@@ -185,13 +186,15 @@ return 0, so the compendium shows and charges 0 Macca.
 ### Battle Refill
 
 The battle step machine's `SetNextStep` is hooked. When a battle enters its
-encounter step, every item that is usable in battle and has been obtained at
+first step, every item that is usable in battle and has been obtained at
 least once is topped up to its carry limit with the game's own item calls.
 Camp-only consumables such as incenses and Gospels are not refilled.
 
-### Multi-Jump
+### Superjump
 
-Pressing jump in mid-air restarts the jump arc from the current height. While
+While jump is held in the focused game window, the rising part of the jump arc
+is held at a steady climb speed; releasing it lets the arc continue into the
+fall. Pressing jump in mid-air starts a new climb from the current height. While
 airborne, the fall-speed cap that governs air movement is raised by 50%, and
 the input and rotation damping applied in the air is lifted so the character
 turns nearly instantly.

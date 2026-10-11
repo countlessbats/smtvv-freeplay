@@ -23,8 +23,8 @@ Applies quality-of-life patches to the game executable and optional data paks:
   6. Battle Refill  -- at the start of every battle, each battle-usable item
      the player has ever obtained is topped up to its carry limit.
 
-  7. Multi-Jump  -- press jump in mid-air to jump again; faster air movement
-     and near-instant turning while airborne.
+  7. Superjump  -- hold jump to keep rising; faster air movement and
+     near-instant turning while airborne.
 
 Executable patches share the same large CC cave in .rdata.
 
@@ -52,7 +52,7 @@ import gameplay_patches  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.2"
+MOD_VERSION = "5.7.3"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -296,7 +296,7 @@ def main() -> None:
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
     parser.add_argument("--no-jump", action="store_true",
-                        help="Skip the Multi-Jump patch")
+                        help="Skip the Superjump patch")
     args = parser.parse_args()
 
     do_essences = not args.no_essences
@@ -596,7 +596,7 @@ def main() -> None:
     # ==================================================================
     cave_end = cave_off + cave_len
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
-                               (do_jump, "Multi-Jump", gameplay_patches.patch_jump)):
+                               (do_jump, "Superjump", gameplay_patches.patch_jump)):
         if not on:
             continue
         start = next_cave_off
