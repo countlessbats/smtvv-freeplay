@@ -65,9 +65,7 @@ fi
 PATCH_FLAGS=()
 for a in "$@"; do
     case "$a" in
-        --no-superjump)
-            echo "Note: Superjump has been removed; ignoring deprecated --no-superjump."
-            ;;
+        --no-superjump) PATCH_FLAGS+=("--no-jump") ;;
         *) PATCH_FLAGS+=("$a") ;;
     esac
 done

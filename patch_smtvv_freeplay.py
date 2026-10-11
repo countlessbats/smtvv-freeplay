@@ -52,7 +52,7 @@ import gameplay_patches  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.3"
+MOD_VERSION = "5.7.4"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
