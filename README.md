@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.4**
+**Current version: 5.7.5**
 
 ## Features
 
@@ -29,6 +29,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    release to fall. Pressing jump in mid-air starts rising again. While
    airborne you move 50% faster and turn almost instantly.
 
+8. **Free Growth Items** - Gospels, Grimoires and all Sutras are sold in the
+   shop from the start of the game for 0 Macca.
+
 ## Requirements
 
 - Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
@@ -54,7 +57,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump).
+   Battle Refill, Superjump, Free Growth Items).
 
 The installer backs up the original executable as:
 
@@ -81,7 +84,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all seven features. To install only some of them,
+With no switches, it installs all eight features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -92,6 +95,7 @@ add a skip-switch for each feature you do **not** want:
 --no-compendium
 --no-refill
 --no-jump
+--no-shop
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -129,6 +133,7 @@ Optional patch flags:
 --no-compendium
 --no-refill
 --no-jump
+--no-shop
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -182,6 +187,13 @@ The same leyline hook can also loop through Miman save-buffer indexes and call
 
 The demon-cost formula behind every compendium summon price is patched to
 return 0, so the compendium shows and charges 0 Macca.
+
+### Free Growth Items
+
+Like the NG+ miracle pak, this is a small override pak built at install time
+from your own `pakchunk0`: the item table's buying price for Gospels,
+Grimoires and Sutras is set to 0, their shop unlock conditions are cleared,
+and a shop entry is added for Gospels. The uninstallers remove the pak.
 
 ### Battle Refill
 

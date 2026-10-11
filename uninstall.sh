@@ -47,6 +47,12 @@ if [ -f "$MIRACLE_PAK" ]; then
     rm -f "$MIRACLE_PAK"
 fi
 
+SHOP_PAK="$GAMEDIR/Project/Content/Paks/pakchunk98_FreeplayShop_P.pak"
+if [ -f "$SHOP_PAK" ]; then
+    echo "Removing shop data pak..."
+    rm -f "$SHOP_PAK"
+fi
+
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"

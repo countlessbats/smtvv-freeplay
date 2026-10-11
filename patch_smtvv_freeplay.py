@@ -26,6 +26,9 @@ Applies quality-of-life patches to the game executable and optional data paks:
   7. Superjump  -- hold jump to keep rising; faster air movement and
      near-instant turning while airborne.
 
+  8. Free Growth Items  -- Gospels, Grimoires and Sutras are sold from the
+     start for 0 Macca (data pak built from the player's game files).
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -47,12 +50,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gameplay_patches  # noqa: E402
+import shop_pak  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.4"
+MOD_VERSION = "5.7.5"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -295,6 +299,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
+    parser.add_argument("--no-shop", action="store_true",
+                        help="Skip the Free Growth Items shop patch")
     parser.add_argument("--no-jump", action="store_true",
                         help="Skip the Superjump patch")
     args = parser.parse_args()
@@ -306,6 +312,7 @@ def main() -> None:
     do_compendium = not args.no_compendium
     do_refill = not args.no_refill
     do_jump = not args.no_jump
+    do_shop = not args.no_shop
 
     game_dir = locate_game_dir(args.game_dir)
     if game_dir is None:
@@ -330,10 +337,11 @@ def main() -> None:
     # the patches selected *this* run: remove it here and rebuild it
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
-    stale_pak = os.path.join(game_dir, PAKS_SUBPATH, MIRACLE_PAK)
-    if os.path.isfile(stale_pak):
-        print(f"  Removing previous {MIRACLE_PAK} (rebuilt if selected)")
-        os.remove(stale_pak)
+    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK):
+        stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
+        if os.path.isfile(stale_pak):
+            print(f"  Removing previous {pak} (rebuilt if selected)")
+            os.remove(stale_pak)
 
     legacy_extract = os.path.join(game_dir, PAKS_SUBPATH,
                                   "pakchunk0-WindowsNoEditor")
@@ -365,7 +373,8 @@ def main() -> None:
                                 ("Miracles", do_miracles),
                                 ("Compendium", do_compendium),
                                 ("Refill", do_refill),
-                                ("Jump", do_jump)] if on]
+                                ("Jump", do_jump),
+                                ("Shop", do_shop)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -608,6 +617,21 @@ def main() -> None:
         patch_num += 1
         print(f"\n  [{patch_num}/{total}] {label}")
         print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
+
+    # ==================================================================
+    # PATCH: Free Growth Items (data pak only)
+    # ==================================================================
+    if do_shop:
+        patch_num += 1
+        print(f"\n  [{patch_num}/{total}] Free Growth Items")
+        repak = find_repak()
+        try:
+            if repak is None:
+                raise RuntimeError("bundled repak tool not found")
+            shop_pak.build_shop_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
+            print(f"    Data pak      : {shop_pak.SHOP_PAK}")
+        except RuntimeError as exc:
+            print(f"    WARNING: shop data pak not built - {exc}")
 
     # ------------------------------------------------------------------
     # Backup & save

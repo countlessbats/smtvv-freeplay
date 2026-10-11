@@ -2,7 +2,7 @@
 
 A quality-of-life patch bundle for *Shin Megami Tensei V: Vengeance*: Reusable
 Essences, Leyline Auto-Heal, Miman Reveal, NG+ Miracles From Start, Free Compendium,
-Battle Refill, and Superjump.
+Battle Refill, Superjump, and Free Growth Items.
 
 **Requirements:** the **Steam** version of the game, on Windows or Steam Deck /
 Linux (via Proton). Close the game before installing. Game Pass / Microsoft Store
@@ -39,7 +39,7 @@ Only the installer differs.
    ./install.sh
    ```
 
-   With no switches, this installs all seven features. To install only some of
+   With no switches, this installs all eight features. To install only some of
    them, add a skip-switch for each feature you do **not** want:
 
    ```text
@@ -50,6 +50,7 @@ Only the installer differs.
    --no-compendium
    --no-refill
    --no-jump
+   --no-shop
    ```
 
    For example, to install **only Reusable Essences and Miman Reveal** (skipping

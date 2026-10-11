@@ -32,6 +32,7 @@ set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
 set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
 set /p P6="   Battle Refill (battle items topped up at every battle start)? [Y/n]: "
 set /p P7="   Superjump (hold jump to rise, faster air control)? [Y/n]: "
+set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras free in shop)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -41,6 +42,7 @@ if /i "%P4%"=="n" set "FLAGS=!FLAGS! --no-miracles"
 if /i "%P5%"=="n" set "FLAGS=!FLAGS! --no-compendium"
 if /i "%P6%"=="n" set "FLAGS=!FLAGS! --no-refill"
 if /i "%P7%"=="n" set "FLAGS=!FLAGS! --no-jump"
+if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
 goto :run_patcher
 
 :run_patcher
@@ -123,6 +125,10 @@ for %%I in ("!BINDIR!\..\..\..") do set "GAMEDIR=%%~fI"
 if exist "!GAMEDIR!\Project\Content\Paks\pakchunk99_NGPlusMiracles_P.pak" (
     echo  Removing NG+ miracle data pak...
     del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk99_NGPlusMiracles_P.pak" >nul 2>nul
+)
+if exist "!GAMEDIR!\Project\Content\Paks\pakchunk98_FreeplayShop_P.pak" (
+    echo  Removing shop data pak...
+    del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk98_FreeplayShop_P.pak" >nul 2>nul
 )
 if exist "!BINDIR!\xinput1_3.dll" (
     call :remove_legacy_superjump

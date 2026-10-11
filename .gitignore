@@ -15,3 +15,6 @@ build/
 flight/*.obj
 flight/*.exp
 flight/*.lib
+
+# Oodle runtime copied from the game by repak at install time
+repak/win64/oo2core_*.dll
