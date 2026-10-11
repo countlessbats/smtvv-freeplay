@@ -11,7 +11,7 @@
 #     ./install.sh --no-miracles   # skip a patch (see flags below)
 #
 # Patch flags are passed through to the patcher:
-#   --no-essences  --no-heal  --no-mimans  --no-miracles
+#   --no-essences  --no-heal  --no-mimans  --no-miracles  --no-compendium
 #
 set -euo pipefail
 

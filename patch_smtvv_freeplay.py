@@ -16,6 +16,10 @@ Applies quality-of-life patches to the game executable and optional data paks:
   4. NG+ Miracles  -- selected NG+ miracles are visible and purchasable
      before clearing the game.
 
+  5. Free Compendium  -- summoning demons from the compendium costs nothing.
+     The shared demon-cost formula (used by every compendium price path)
+     returns 0.
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -39,7 +43,7 @@ import sys
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.0"
+MOD_VERSION = "5.7.1"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -102,6 +106,12 @@ MIRACLE_666_NOP_ADDR = 0x00551AEE   # 6-byte JE instruction to NOP
 # Miracle IDs/enums to force-unlock (both 0-based and 1-based to cover
 # all code paths: some functions use enum=ID-1, others use raw ID)
 MIRACLE_UNLOCK_IDS   = [22, 23, 24, 30, 31, 32]
+
+# Demon cost formula (compendium summon price). Called by
+# CalcDevilCost_ByBibleData / _ByDevilData / _ByPartyData; returns the
+# Macca cost in EAX. Patched to "xor eax, eax; ret".
+DEVIL_COST_OFFSET = 0x00BFB480
+DEVIL_COST_ORIG   = bytes.fromhex("4c8bdc49894b0841574881ecc0000000")
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -272,12 +282,15 @@ def main() -> None:
                         help="Skip the Miman Position Reveal patch")
     parser.add_argument("--no-miracles", action="store_true",
                         help="Skip the NG+ Miracles Unlock patch")
+    parser.add_argument("--no-compendium", action="store_true",
+                        help="Skip the Free Compendium patch")
     args = parser.parse_args()
 
     do_essences = not args.no_essences
     do_heal     = not args.no_heal
     do_mimans   = not args.no_mimans
     do_miracles = not args.no_miracles
+    do_compendium = not args.no_compendium
 
     game_dir = locate_game_dir(args.game_dir)
     if game_dir is None:
@@ -334,7 +347,8 @@ def main() -> None:
     enabled = [n for n, on in [("Essences", do_essences),
                                 ("Heal", do_heal),
                                 ("Mimans", do_mimans),
-                                ("Miracles", do_miracles)] if on]
+                                ("Miracles", do_miracles),
+                                ("Compendium", do_compendium)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -545,6 +559,20 @@ def main() -> None:
                 print(f"    WARNING: NG+ miracle data pak not built — {exc}")
                 print(f"             The miracle shop hooks are still "
                       f"installed, but some NG+ miracles may stay locked.")
+
+    # ==================================================================
+    # PATCH: Free Compendium
+    # ==================================================================
+    if do_compendium:
+        actual = bytes(data[DEVIL_COST_OFFSET : DEVIL_COST_OFFSET + 16])
+        if actual != DEVIL_COST_ORIG:
+            print(f"\n  WARNING: Compendium AOB mismatch at "
+                  f"0x{DEVIL_COST_OFFSET:08X} - skipping")
+        else:
+            data[DEVIL_COST_OFFSET : DEVIL_COST_OFFSET + 3] = b"\x33\xC0\xC3"
+            patch_num += 1
+            print(f"\n  [{patch_num}/{total}] Free Compendium")
+            print(f"    Cost formula  : 0x{DEVIL_COST_OFFSET:08X}  -> 0")
 
     # ------------------------------------------------------------------
     # Backup & save

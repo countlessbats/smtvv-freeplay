@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.0**
+**Current version: 5.7.1**
 
 ## Features
 
@@ -18,6 +18,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
 4. **NG+ Miracles From Start** - selected NG+ miracle gates are bypassed so
    they are available without a cleared save.
+
+5. **Free Compendium** - summoning a registered demon from the compendium
+   costs no Macca.
 
 ## Requirements
 
@@ -43,7 +46,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 2. Double-click `install.bat`.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
-   Leyline Auto-Heal, Miman Reveal, NG+ Miracles).
+   Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium).
 
 The installer backs up the original executable as:
 
@@ -70,7 +73,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all four features. To install only some of them,
+With no switches, it installs all five features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -78,6 +81,7 @@ add a skip-switch for each feature you do **not** want:
 --no-heal
 --no-mimans
 --no-miracles
+--no-compendium
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -112,6 +116,7 @@ Optional patch flags:
 --no-heal
 --no-mimans
 --no-miracles
+--no-compendium
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -160,6 +165,11 @@ logic.
 
 The same leyline hook can also loop through Miman save-buffer indexes and call
 `SetMimanPositionFlag(index, true)`.
+
+### Free Compendium
+
+The demon-cost formula behind every compendium summon price is patched to
+return 0, so the compendium shows and charges 0 Macca.
 
 ### NG+ Miracles From Start
 
