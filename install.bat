@@ -36,6 +36,7 @@ set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses fre
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
 set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
+set /p P12="   Auto Load (load the most recent save at boot)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -49,6 +50,7 @@ if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
 if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
 if /i "%P10%"=="n" set "FLAGS=!FLAGS! --no-intro"
 if /i "%P11%"=="n" set "FLAGS=!FLAGS! --no-masakado"
+if /i "%P12%"=="n" set "FLAGS=!FLAGS! --no-autoload"
 goto :run_patcher
 
 :run_patcher

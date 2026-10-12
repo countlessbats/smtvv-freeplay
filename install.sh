@@ -13,6 +13,7 @@
 # Patch flags are passed through to the patcher:
 #   --no-essences  --no-heal  --no-mimans  --no-miracles  --no-compendium
 #   --no-refill  --no-jump  --no-shop  --no-magatsuhi  --no-intro  --no-masakado
+#   --no-autoload
 #
 set -euo pipefail
 

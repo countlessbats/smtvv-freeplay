@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.11**
+**Current version: 5.7.12**
 
 ## Features
 
@@ -42,6 +42,11 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.
 
+12. **Auto Load** - when the game starts, your most recent save loads by
+    itself. It only happens once per launch: returning to the title menu later
+    works as normal. With Skip Intro as well, the game goes straight from launch
+    into your save.
+
 ## Requirements
 
 - Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
@@ -67,7 +72,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock).
+   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock, Auto Load).
 
 The installer backs up the original executable as:
 
@@ -94,7 +99,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all eleven features. To install only some of them,
+With no switches, it installs all twelve features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -109,6 +114,7 @@ add a skip-switch for each feature you do **not** want:
 --no-magatsuhi
 --no-intro
 --no-masakado
+--no-autoload
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -150,6 +156,7 @@ Optional patch flags:
 --no-magatsuhi
 --no-intro
 --no-masakado
+--no-autoload
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -222,6 +229,15 @@ does when you return to the title from in-game. The uninstallers remove the pak.
 Because the title menu otherwise comes up with the controller reported as
 disconnected, the executable also hooks the title menu's first tick and posts
 the window deactivate/activate messages a tab-out and tab-in would send.
+
+### Auto Load
+
+The first time the title menu ticks, the patch checks the save headers and,
+if any slot is in use, arms itself. For the next few seconds the Blueprint
+check for the confirm button reports a press: the title menu's cursor starts
+on Load when saves exist, and the load menu opened from the title starts on
+the newest save, so that save loads. The patch disarms when loading starts (or
+after 20 seconds) and stays off until the game is restarted.
 
 ### Masakado Unlock
 

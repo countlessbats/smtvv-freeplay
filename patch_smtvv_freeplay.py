@@ -40,6 +40,9 @@ Applies quality-of-life patches to the game executable and optional data paks:
  11. Masakado Unlock  -- Masakado offers his powered-up fight without the
      Kiou Sword (data pak built from the player's game files).
 
+ 12. Auto Load  -- once per boot, the title menu loads the most recent save
+     by itself.
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -64,12 +67,13 @@ import gameplay_patches  # noqa: E402
 import shop_pak  # noqa: E402
 import boot_pak  # noqa: E402
 import quest_pak  # noqa: E402
+import autoload_patch  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.11"
+MOD_VERSION = "5.7.12"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -312,6 +316,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
+    parser.add_argument("--no-autoload", action="store_true",
+                        help="Skip the Auto Load patch")
     parser.add_argument("--no-masakado", action="store_true",
                         help="Skip the Masakado Unlock patch")
     parser.add_argument("--no-intro", action="store_true",
@@ -334,6 +340,7 @@ def main() -> None:
     do_magatsuhi = not args.no_magatsuhi
     do_intro = not args.no_intro
     do_masakado = not args.no_masakado
+    do_autoload = not args.no_autoload
     do_shop = not args.no_shop
 
     game_dir = locate_game_dir(args.game_dir)
@@ -399,7 +406,8 @@ def main() -> None:
                                 ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop),
                                 ("Intro", do_intro),
-                                ("Masakado", do_masakado)] if on]
+                                ("Masakado", do_masakado),
+                                ("AutoLoad", do_autoload)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -626,12 +634,13 @@ def main() -> None:
             print(f"    Cost formula  : 0x{DEVIL_COST_OFFSET:08X}  -> 0")
 
     # ==================================================================
-    # PATCH: Battle Refill / Superjump / Full Magatsuhi
+    # PATCH: Battle Refill / Superjump / Full Magatsuhi / Auto Load
     # ==================================================================
     cave_end = cave_off + cave_len
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
                                (do_jump, "Superjump", gameplay_patches.patch_jump),
-                               (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi)):
+                               (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi),
+                               (do_autoload, "Auto Load", autoload_patch.patch_autoload)):
         if not on:
             continue
         start = next_cave_off
