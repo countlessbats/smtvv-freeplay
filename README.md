@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.17**
+**Current version: 5.7.18**
 
 ## Features
 
@@ -42,12 +42,6 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.
 
-12. **Auto Load** - when the game starts, the title menu loads your most
-    recent save by itself about a second after it appears. It only happens at
-    launch: returning to the title from in-game opens the title menu as normal.
-    With Skip Intro as well, the game goes from launch to your save with only a
-    brief look at the title menu in between.
-
 ## Requirements
 
 - Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
@@ -73,7 +67,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock, Auto Load).
+   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock).
 
 The installer backs up the original executable as:
 
@@ -100,7 +94,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all twelve features. To install only some of them,
+With no switches, it installs all eleven features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -115,7 +109,6 @@ add a skip-switch for each feature you do **not** want:
 --no-magatsuhi
 --no-intro
 --no-masakado
---no-autoload
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -157,7 +150,6 @@ Optional patch flags:
 --no-magatsuhi
 --no-intro
 --no-masakado
---no-autoload
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -230,20 +222,6 @@ does when you return to the title from in-game. The uninstallers remove the pak.
 Because the title menu otherwise comes up with the controller reported as
 disconnected, the executable also hooks the title menu's first tick and posts
 the window deactivate/activate messages a tab-out and tab-in would send.
-
-### Auto Load
-
-While the title menu is up, the title level runs one step every frame. A
-small override pak built from your own `pakchunk0` puts a check in front of
-that step: when `IsRequestedTitleMovie()` answers "requested", the level goes
-to its own "load the game map" step, the one that normally runs after a save
-is loaded from the title. The executable hook on that call answers
-"requested" once per launch: when the title menu has been up for 1.2 seconds
-(after the Skip Intro window refocus, so the controller is ready) and the
-newest regular save has loaded (NG+ clear data is left to the title menu).
-Otherwise it returns the game's own answer, so the title movie, the title
-menu and returning to the title from in-game work as usual. The uninstallers
-remove the pak.
 
 ### Masakado Unlock
 

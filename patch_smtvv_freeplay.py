@@ -40,9 +40,6 @@ Applies quality-of-life patches to the game executable and optional data paks:
  11. Masakado Unlock  -- Masakado offers his powered-up fight without the
      Kiou Sword (data pak built from the player's game files).
 
- 12. Auto Load  -- when the game starts, the title menu loads the most
-     recent save by itself (data pak built from the player's game files).
-
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -67,13 +64,12 @@ import gameplay_patches  # noqa: E402
 import shop_pak  # noqa: E402
 import boot_pak  # noqa: E402
 import quest_pak  # noqa: E402
-import autoload_patch  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.17"
+MOD_VERSION = "5.7.18"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -316,8 +312,6 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
-    parser.add_argument("--no-autoload", action="store_true",
-                        help="Skip the Auto Load patch")
     parser.add_argument("--no-masakado", action="store_true",
                         help="Skip the Masakado Unlock patch")
     parser.add_argument("--no-intro", action="store_true",
@@ -340,7 +334,6 @@ def main() -> None:
     do_magatsuhi = not args.no_magatsuhi
     do_intro = not args.no_intro
     do_masakado = not args.no_masakado
-    do_autoload = not args.no_autoload
     do_shop = not args.no_shop
 
     game_dir = locate_game_dir(args.game_dir)
@@ -366,8 +359,7 @@ def main() -> None:
     # the patches selected *this* run: remove it here and rebuild it
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
-    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK,
-                autoload_patch.AUTOLOAD_PAK):
+    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -407,8 +399,7 @@ def main() -> None:
                                 ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop),
                                 ("Intro", do_intro),
-                                ("Masakado", do_masakado),
-                                ("AutoLoad", do_autoload)] if on]
+                                ("Masakado", do_masakado)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -704,28 +695,6 @@ def main() -> None:
             print(f"    Data pak      : {quest_pak.QUEST_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: quest data pak not built - {exc}")
-
-    # ==================================================================
-    # PATCH: Auto Load (executable + data pak)
-    # ==================================================================
-    if do_autoload:
-        patch_num += 1
-        print(f"\n  [{patch_num}/{total}] Auto Load")
-        start = next_cave_off
-        result = autoload_patch.patch_autoload(data, next_cave_off, cave_end)
-        if result is None:
-            print("    WARNING: Auto Load AOB mismatch - skipping")
-        else:
-            next_cave_off = result
-            print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
-            repak = find_repak()
-            try:
-                if repak is None:
-                    raise RuntimeError("bundled repak tool not found")
-                autoload_patch.build_autoload_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
-                print(f"    Data pak      : {autoload_patch.AUTOLOAD_PAK}")
-            except RuntimeError as exc:
-                print(f"    WARNING: auto load data pak not built - {exc}")
 
     # ------------------------------------------------------------------
     # Backup & save

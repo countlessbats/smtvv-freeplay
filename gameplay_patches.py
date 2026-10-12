@@ -347,15 +347,9 @@ REFOCUS_DELAY_MS  = 600
 REFOCUS_GAP_MS    = 250
 
 
-REFOCUS_THREAD: int | None = None    # VA of the shared refocus thread, once emitted
-
-
-def emit_refocus_thread(data: bytearray, cave_off: int, cave_end: int) -> int:
-    """Emit (once) a thread that waits, then posts the deactivate/activate
-    messages of a tab-out and tab-in to the game window if it is in front."""
-    global REFOCUS_THREAD
-    if REFOCUS_THREAD is not None:
-        return cave_off
+def patch_refocus(data: bytearray, cave_off: int, cave_end: int) -> int | None:
+    if bytes(data[off(TITLE_TICK_IMPL):off(TITLE_TICK_IMPL) + 8]) != TITLE_TICK_ORIG:
+        return None
 
     def u32(v): return struct.pack("<I", v).hex()
 
@@ -364,6 +358,17 @@ def emit_refocus_thread(data: bytearray, cave_off: int, cave_end: int) -> int:
         a._rel("FF15", IAT_POST_MESSAGE)
 
     a = Asm(va(cave_off))
+    a._rel("8A 05", REFOCUS_DONE).raw("84 C0").jne("orig")
+    a.raw("B0 01")._rel("88 05", REFOCUS_DONE)
+    a.raw("48 83 EC 38 31 C9 31 D2")
+    a._rel("4C 8D 05", "thread")
+    a.raw("45 31 C9 48 C7 44 24 20 00 00 00 00 48 C7 44 24 28 00 00 00 00")
+    a._rel("FF15", IAT_CREATE_THREAD)
+    a.raw("48 83 C4 38")
+    a.label("orig")
+    a._rel("0F B6 05", TITLE_TICK_FLAG).raw("C3")
+
+    a.label("thread")
     a.raw("53 48 83 EC 30")
     a.raw("B9" + u32(REFOCUS_DELAY_MS))._rel("FF15", IAT_SLEEP)
     a._rel("FF15", IAT_GET_FOREGROUND_WINDOW)
@@ -378,33 +383,6 @@ def emit_refocus_thread(data: bytearray, cave_off: int, cave_end: int) -> int:
     post(WM_ACTIVATE, 1)
     a.label("done")
     a.raw("31 C0 48 83 C4 30 5B C3")
-    REFOCUS_THREAD = va(cave_off)
-    return _place(data, cave_off, cave_end, a.build())
-
-
-def start_refocus_thread(a: Asm) -> None:
-    """CreateThread(refocus thread). Needs rsp 16-byte aligned on entry and
-    clobbers the volatile registers."""
-    a.raw("48 83 EC 30 31 C9 31 D2")
-    a._rel("4C 8D 05", REFOCUS_THREAD)
-    a.raw("45 31 C9 48 C7 44 24 20 00 00 00 00 48 C7 44 24 28 00 00 00 00")
-    a._rel("FF15", IAT_CREATE_THREAD)
-    a.raw("48 83 C4 30")
-
-
-def patch_refocus(data: bytearray, cave_off: int, cave_end: int) -> int | None:
-    if bytes(data[off(TITLE_TICK_IMPL):off(TITLE_TICK_IMPL) + 8]) != TITLE_TICK_ORIG:
-        return None
-    cave_off = emit_refocus_thread(data, cave_off, cave_end)
-
-    a = Asm(va(cave_off))
-    a._rel("8A 05", REFOCUS_DONE).raw("84 C0").jne("orig")
-    a.raw("B0 01")._rel("88 05", REFOCUS_DONE)
-    a.raw("48 83 EC 08")                 # align: entered with rsp = 8 mod 16
-    start_refocus_thread(a)
-    a.raw("48 83 C4 08")
-    a.label("orig")
-    a._rel("0F B6 05", TITLE_TICK_FLAG).raw("C3")
 
     dest = va(cave_off)
     cave_off = _place(data, cave_off, cave_end, a.build())

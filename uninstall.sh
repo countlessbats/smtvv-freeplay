@@ -65,12 +65,6 @@ if [ -f "$QUEST_PAK" ]; then
     rm -f "$QUEST_PAK"
 fi
 
-AUTOLOAD_PAK="$GAMEDIR/Project/Content/Paks/pakchunk95_FreeplayAutoLoad_P.pak"
-if [ -f "$AUTOLOAD_PAK" ]; then
-    echo "Removing auto load data pak..."
-    rm -f "$AUTOLOAD_PAK"
-fi
-
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"
