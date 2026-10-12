@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.12**
+**Current version: 5.7.13**
 
 ## Features
 
@@ -42,10 +42,11 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.
 
-12. **Auto Load** - when the game starts, your most recent save loads by
-    itself. It only happens once per launch: returning to the title menu later
-    works as normal. With Skip Intro as well, the game goes straight from launch
-    into your save.
+12. **Auto Load** - when the game starts, it goes straight into your most
+    recent save without showing the title menu. It only happens at launch:
+    returning to the title from in-game opens the title menu as normal. With
+    Skip Intro as well, the game goes from launch to your save with nothing but
+    a black screen in between.
 
 ## Requirements
 
@@ -232,12 +233,15 @@ the window deactivate/activate messages a tab-out and tab-in would send.
 
 ### Auto Load
 
-The first time the title menu ticks, the patch checks the save headers and,
-if any slot is in use, arms itself. For the next few seconds the Blueprint
-check for the confirm button reports a press: the title menu's cursor starts
-on Load when saves exist, and the load menu opened from the title starts on
-the newest save, so that save loads. The patch disarms when loading starts (or
-after 20 seconds) and stays off until the game is restarted.
+The title level asks `IsRequestedTitleMovie()` once, before any title UI
+exists. A small override pak built from your own `pakchunk0` points that
+branch at the level's own "load the game map" step, the one that normally
+runs after a save is loaded from the title. The executable hook on that call
+reloads the save headers, loads the newest regular save (NG+ clear data is
+left to the title menu) and answers "requested" when that succeeds; otherwise,
+and on every later visit to the title, it answers "not requested" and the
+title menu opens as usual. The title movie screen is not used while Auto Load
+is installed. The uninstallers remove the pak.
 
 ### Masakado Unlock
 

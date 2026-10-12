@@ -40,8 +40,9 @@ Applies quality-of-life patches to the game executable and optional data paks:
  11. Masakado Unlock  -- Masakado offers his powered-up fight without the
      Kiou Sword (data pak built from the player's game files).
 
- 12. Auto Load  -- once per boot, the title menu loads the most recent save
-     by itself.
+ 12. Auto Load  -- when the game starts it goes straight into the most
+     recent save, without showing the title menu (data pak built from the
+     player's game files).
 
 Executable patches share the same large CC cave in .rdata.
 
@@ -73,7 +74,7 @@ import autoload_patch  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.12"
+MOD_VERSION = "5.7.13"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -366,7 +367,8 @@ def main() -> None:
     # the patches selected *this* run: remove it here and rebuild it
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
-    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK):
+    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK,
+                autoload_patch.AUTOLOAD_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -634,13 +636,12 @@ def main() -> None:
             print(f"    Cost formula  : 0x{DEVIL_COST_OFFSET:08X}  -> 0")
 
     # ==================================================================
-    # PATCH: Battle Refill / Superjump / Full Magatsuhi / Auto Load
+    # PATCH: Battle Refill / Superjump / Full Magatsuhi
     # ==================================================================
     cave_end = cave_off + cave_len
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
                                (do_jump, "Superjump", gameplay_patches.patch_jump),
-                               (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi),
-                               (do_autoload, "Auto Load", autoload_patch.patch_autoload)):
+                               (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi)):
         if not on:
             continue
         start = next_cave_off
@@ -704,6 +705,28 @@ def main() -> None:
             print(f"    Data pak      : {quest_pak.QUEST_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: quest data pak not built - {exc}")
+
+    # ==================================================================
+    # PATCH: Auto Load (executable + data pak)
+    # ==================================================================
+    if do_autoload:
+        patch_num += 1
+        print(f"\n  [{patch_num}/{total}] Auto Load")
+        start = next_cave_off
+        result = autoload_patch.patch_autoload(data, next_cave_off, cave_end)
+        if result is None:
+            print("    WARNING: Auto Load AOB mismatch - skipping")
+        else:
+            next_cave_off = result
+            print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
+            repak = find_repak()
+            try:
+                if repak is None:
+                    raise RuntimeError("bundled repak tool not found")
+                autoload_patch.build_autoload_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
+                print(f"    Data pak      : {autoload_patch.AUTOLOAD_PAK}")
+            except RuntimeError as exc:
+                print(f"    WARNING: auto load data pak not built - {exc}")
 
     # ------------------------------------------------------------------
     # Backup & save

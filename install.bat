@@ -36,7 +36,7 @@ set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses fre
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
 set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
-set /p P12="   Auto Load (load the most recent save at boot)? [Y/n]: "
+set /p P12="   Auto Load (boot straight into the most recent save)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -145,6 +145,10 @@ if exist "!GAMEDIR!\Project\Content\Paks\pakchunk97_FreeplayBoot_P.pak" (
 if exist "!GAMEDIR!\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" (
     echo  Removing quest data pak...
     del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" >nul 2>nul
+)
+if exist "!GAMEDIR!\Project\Content\Paks\pakchunk95_FreeplayAutoLoad_P.pak" (
+    echo  Removing auto load data pak...
+    del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk95_FreeplayAutoLoad_P.pak" >nul 2>nul
 )
 if exist "!BINDIR!\xinput1_3.dll" (
     call :remove_legacy_superjump
