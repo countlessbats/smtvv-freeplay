@@ -33,6 +33,10 @@ Applies quality-of-life patches to the game executable and optional data paks:
   9. Full Magatsuhi  -- the Magatsuhi gauge is filled at the start of every
      battle.
 
+ 10. Skip Intro  -- no logo or warning screens, opening movie or "press any
+     button" screen; the game boots straight to the title menu (data pak
+     built from the player's game files).
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -55,12 +59,13 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gameplay_patches  # noqa: E402
 import shop_pak  # noqa: E402
+import boot_pak  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.6"
+MOD_VERSION = "5.7.7"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -303,6 +308,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
+    parser.add_argument("--no-intro", action="store_true",
+                        help="Skip the Skip Intro patch")
     parser.add_argument("--no-magatsuhi", action="store_true",
                         help="Skip the Full Magatsuhi patch")
     parser.add_argument("--no-shop", action="store_true",
@@ -319,6 +326,7 @@ def main() -> None:
     do_refill = not args.no_refill
     do_jump = not args.no_jump
     do_magatsuhi = not args.no_magatsuhi
+    do_intro = not args.no_intro
     do_shop = not args.no_shop
 
     game_dir = locate_game_dir(args.game_dir)
@@ -344,7 +352,7 @@ def main() -> None:
     # the patches selected *this* run: remove it here and rebuild it
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
-    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK):
+    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -382,7 +390,8 @@ def main() -> None:
                                 ("Refill", do_refill),
                                 ("Jump", do_jump),
                                 ("Magatsuhi", do_magatsuhi),
-                                ("Shop", do_shop)] if on]
+                                ("Shop", do_shop),
+                                ("Intro", do_intro)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -641,6 +650,21 @@ def main() -> None:
             print(f"    Data pak      : {shop_pak.SHOP_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: shop data pak not built - {exc}")
+
+    # ==================================================================
+    # PATCH: Skip Intro (data pak only)
+    # ==================================================================
+    if do_intro:
+        patch_num += 1
+        print(f"\n  [{patch_num}/{total}] Skip Intro")
+        repak = find_repak()
+        try:
+            if repak is None:
+                raise RuntimeError("bundled repak tool not found")
+            boot_pak.build_boot_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
+            print(f"    Data pak      : {boot_pak.BOOT_PAK}")
+        except RuntimeError as exc:
+            print(f"    WARNING: intro data pak not built - {exc}")
 
     # ------------------------------------------------------------------
     # Backup & save

@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.6**
+**Current version: 5.7.7**
 
 ## Features
 
@@ -35,6 +35,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 9. **Full Magatsuhi** - the Magatsuhi gauge is filled at the start of every
    battle. Magatsuhi gain during battle is unchanged.
 
+10. **Skip Intro** - no logo or warning screens, no opening movie and no
+    "press any button" screen: the game boots straight to the title menu.
+
 ## Requirements
 
 - Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
@@ -60,7 +63,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi).
+   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro).
 
 The installer backs up the original executable as:
 
@@ -87,7 +90,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all nine features. To install only some of them,
+With no switches, it installs all ten features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -100,6 +103,7 @@ add a skip-switch for each feature you do **not** want:
 --no-jump
 --no-shop
 --no-magatsuhi
+--no-intro
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -139,6 +143,7 @@ Optional patch flags:
 --no-jump
 --no-shop
 --no-magatsuhi
+--no-intro
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -200,6 +205,14 @@ from your own `pakchunk0`: the item table's buying price for Gospels,
 Grimoires, Sutras, Balms and Incenses is set to 0, their shop unlock
 conditions are cleared, and shop entries are added for those the shop never
 stocks. The uninstallers remove the pak.
+
+### Skip Intro
+
+Another small override pak built at install time from your own `pakchunk0`.
+The logo screen's tick enters its graph at the "logos finished" node, so the
+logo level only waits for its resident assets, and the logo game mode no longer
+requests the title movie, so the title level opens its menu directly, as it
+does when you return to the title from in-game. The uninstallers remove the pak.
 
 ### Full Magatsuhi
 

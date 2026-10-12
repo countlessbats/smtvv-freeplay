@@ -53,6 +53,12 @@ if [ -f "$SHOP_PAK" ]; then
     rm -f "$SHOP_PAK"
 fi
 
+BOOT_PAK="$GAMEDIR/Project/Content/Paks/pakchunk97_FreeplayBoot_P.pak"
+if [ -f "$BOOT_PAK" ]; then
+    echo "Removing intro data pak..."
+    rm -f "$BOOT_PAK"
+fi
+
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"
