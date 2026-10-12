@@ -242,7 +242,8 @@ left to the title menu) and answers "requested" when that succeeds; otherwise,
 and on every later visit to the title, it answers "not requested" and the
 title menu opens as usual. The title movie screen is not used while Auto Load
 is installed. After an automatic load, the window deactivate/activate
-refocus (see Skip Intro) runs at the game's first input check in the field. The uninstallers remove the pak.
+refocus (see Skip Intro) runs as soon as a controller answers XInput, so the
+game picks the controller up. The uninstallers remove the pak.
 
 ### Masakado Unlock
 
