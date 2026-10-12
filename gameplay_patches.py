@@ -326,3 +326,65 @@ def patch_jump(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     cave_off = _place(data, cave_off, cave_end, a.build())
     _jmp_site(data, TURN_SITE, dest, 8)
     return cave_off
+
+
+# ---------------------------------------------------------------------------
+# Title refocus: with the intro skipped, the title menu comes up with the
+# controller reported as disconnected until the window is deactivated and
+# reactivated. The first time the title menu ticks, a short-lived thread
+# posts the deactivate/activate messages a tab-out and tab-in would send.
+# ---------------------------------------------------------------------------
+TITLE_TICK_IMPL  = 0x140B8A000   # EnableCountUpNoInputTime(): movzx eax,[flag]; ret
+TITLE_TICK_ORIG  = bytes.fromhex("0fb60521e34b03c3")
+TITLE_TICK_FLAG  = 0x144048328   # the byte the original returns
+REFOCUS_DONE     = 0x1549A9800   # spare zeroed byte in a writable section page
+IAT_CREATE_THREAD = 0x1549AEAC0
+IAT_SLEEP         = 0x1549AF088
+IAT_POST_MESSAGE  = 0x1549AF918
+WM_ACTIVATE       = 0x0006
+WM_ACTIVATEAPP    = 0x001C
+REFOCUS_DELAY_MS  = 600
+REFOCUS_GAP_MS    = 250
+
+
+def patch_refocus(data: bytearray, cave_off: int, cave_end: int) -> int | None:
+    if bytes(data[off(TITLE_TICK_IMPL):off(TITLE_TICK_IMPL) + 8]) != TITLE_TICK_ORIG:
+        return None
+
+    def u32(v): return struct.pack("<I", v).hex()
+
+    def post(msg, wparam):
+        a.raw("48 89 D9 BA" + u32(msg) + "41 B8" + u32(wparam) + "45 31 C9")
+        a._rel("FF15", IAT_POST_MESSAGE)
+
+    a = Asm(va(cave_off))
+    a._rel("8A 05", REFOCUS_DONE).raw("84 C0").jne("orig")
+    a.raw("B0 01")._rel("88 05", REFOCUS_DONE)
+    a.raw("48 83 EC 38 31 C9 31 D2")
+    a._rel("4C 8D 05", "thread")
+    a.raw("45 31 C9 48 C7 44 24 20 00 00 00 00 48 C7 44 24 28 00 00 00 00")
+    a._rel("FF15", IAT_CREATE_THREAD)
+    a.raw("48 83 C4 38")
+    a.label("orig")
+    a._rel("0F B6 05", TITLE_TICK_FLAG).raw("C3")
+
+    a.label("thread")
+    a.raw("53 48 83 EC 30")
+    a.raw("B9" + u32(REFOCUS_DELAY_MS))._rel("FF15", IAT_SLEEP)
+    a._rel("FF15", IAT_GET_FOREGROUND_WINDOW)
+    a.raw("48 89 C3 48 85 C0").je("done")
+    a.raw("48 89 C1 48 8D 54 24 28")._rel("FF15", IAT_GET_WINDOW_THREAD_PID)
+    a._rel("FF15", IAT_GET_CURRENT_PID)
+    a.raw("3B 44 24 28").jne("done")
+    post(WM_ACTIVATE, 0)
+    post(WM_ACTIVATEAPP, 0)
+    a.raw("B9" + u32(REFOCUS_GAP_MS))._rel("FF15", IAT_SLEEP)
+    post(WM_ACTIVATEAPP, 1)
+    post(WM_ACTIVATE, 1)
+    a.label("done")
+    a.raw("31 C0 48 83 C4 30 5B C3")
+
+    dest = va(cave_off)
+    cave_off = _place(data, cave_off, cave_end, a.build())
+    _jmp_site(data, TITLE_TICK_IMPL, dest, 8)
+    return cave_off

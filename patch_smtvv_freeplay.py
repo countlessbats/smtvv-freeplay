@@ -69,7 +69,7 @@ import quest_pak  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.10"
+MOD_VERSION = "5.7.11"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -660,7 +660,7 @@ def main() -> None:
             print(f"    WARNING: shop data pak not built - {exc}")
 
     # ==================================================================
-    # PATCH: Skip Intro (data pak only)
+    # PATCH: Skip Intro (data pak + title refocus)
     # ==================================================================
     if do_intro:
         patch_num += 1
@@ -673,6 +673,13 @@ def main() -> None:
             print(f"    Data pak      : {boot_pak.BOOT_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: intro data pak not built - {exc}")
+        start = next_cave_off
+        result = gameplay_patches.patch_refocus(data, next_cave_off, cave_end)
+        if result is None:
+            print("    WARNING: title refocus AOB mismatch - skipping")
+        else:
+            next_cave_off = result
+            print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
 
     # ==================================================================
     # PATCH: Masakado Unlock (data pak only)

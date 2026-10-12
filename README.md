@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.10**
+**Current version: 5.7.11**
 
 ## Features
 
@@ -219,6 +219,9 @@ The logo sequence starts at its last, invisible hold step, which is lengthened
 to four seconds so Steam Input has attached the controller before the title
 menu reads it, and the logo game mode no longer requests the title movie, so the title level opens its menu directly, as it
 does when you return to the title from in-game. The uninstallers remove the pak.
+Because the title menu otherwise comes up with the controller reported as
+disconnected, the executable also hooks the title menu's first tick and posts
+the window deactivate/activate messages a tab-out and tab-in would send.
 
 ### Masakado Unlock
 
