@@ -34,52 +34,67 @@ HDR_USED, HDR_SLOT, HDR_INHERIT = 0x00, 0x04, 0x50
 
 STATE             = 0x1549A9801   # 0 = first title visit pending, 2 = done
 
-# Booting straight into a save happens before the controller is visible to
-# XInput, so the game starts with it marked disconnected. After the load a
-# thread waits (up to 30 s) for a controller to answer XInputGetState and then
-# runs the window refocus, which makes the game look for controllers again.
-# Timestamps of each step are kept in spare bytes for diagnosis.
+# The game gets its controller through Steam Input, which only hands it over
+# after Steam sees the game window activated; booting straight into a save
+# leaves the game in front with no controller. After the load a thread checks
+# twice a second (for up to 2 minutes): while the game is in front, a pad is
+# present on XInput and the game's Steam controller type is still 0, it runs
+# the window refocus, up to REFOCUS_TRIES times. It stops as soon as the type
+# is set. Times and the try count are kept in spare bytes for diagnosis.
 IAT_GET_TICK_COUNT64 = 0x1549AED78
-PAD_POLL_MS, PAD_POLL_COUNT = 100, 300
-LOG_LOAD, LOG_PAD, LOG_DONE, LOG_LEFT = 0x1549A9810, 0x1549A9818, 0x1549A9820, 0x1549A9828
+STEAM_PAD_TYPE    = 0x1442F3F28   # GetConnectedGamepadType_ForSteam() value
+PAD_POLL_MS, PAD_POLL_COUNT = 500, 240
+REFOCUS_TRIES, REFOCUS_SETTLE_MS = 10, 1500
+LOG_LOAD, LOG_LAST, LOG_DONE, LOG_TRIES = 0x1549A9810, 0x1549A9818, 0x1549A9820, 0x1549A9828
 CAVE2_OFF, CAVE2_END = 0x503310, 0x503400   # spare 0xCC padding in .rdata
 
 
-def emit_pad_wait(data: bytearray) -> tuple[int, int]:
-    """Emit the pad-wait thread and a starter for it in CAVE2.
-    Returns (thread VA, starter VA); the starter is called with rsp = 8 mod 16."""
+def emit_pad_wait(data: bytearray) -> int:
+    """Emit the pad-wait thread in CAVE2 and return its VA."""
     def u32(v): return struct.pack("<I", v).hex()
 
     t = Asm(va(CAVE2_OFF))
-    t.raw("53 56 48 83 EC 38")
+    t.raw("53 56 57 48 83 EC 30")
     t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_LOAD)
-    t.raw("BE" + u32(PAD_POLL_COUNT))
-    t.label("poll").raw("31 DB")
-    t.label("slot").raw("89 D9 48 8D 54 24 20")._rel("FF15", gp.IAT_XINPUT_GET_STATE)
-    t.raw("85 C0").je("found")
-    t.raw("FF C3 83 FB 04")._rel("0F82", "slot")
+    t.raw("BE" + u32(PAD_POLL_COUNT) + "31 FF")
+    t.label("poll")
     t.raw("B9" + u32(PAD_POLL_MS))._rel("FF15", gp.IAT_SLEEP)
+    t._rel("FF15", gp.IAT_GET_FOREGROUND_WINDOW)
+    t.raw("48 85 C0").je("next")
+    t.raw("48 89 C1 48 8D 54 24 28")._rel("FF15", gp.IAT_GET_WINDOW_THREAD_PID)
+    t._rel("FF15", gp.IAT_GET_CURRENT_PID)
+    t.raw("3B 44 24 28").jne("next")
+    t._rel("0F B6 05", STEAM_PAD_TYPE).raw("84 C0").jne("ok")
+    t.raw("31 C9 48 8D 54 24 20")._rel("FF15", gp.IAT_XINPUT_GET_STATE)
+    t.raw("85 C0").jne("next")
+    t.raw("FF C7")._rel("89 3D", LOG_TRIES)
+    t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_LAST)
+    t.raw("31 C9").call(gp.REFOCUS_THREAD)
+    t.raw("B9" + u32(REFOCUS_SETTLE_MS))._rel("FF15", gp.IAT_SLEEP)
+    t.raw("83 FF" + "%02x" % REFOCUS_TRIES)._rel("0F83", "done")
+    t.label("next")
     t.raw("FF CE").jne("poll")
     t.jmp("done")
-    t.label("found")
-    t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_PAD)
-    t._rel("89 35", LOG_LEFT)
-    t.raw("31 C9").call(gp.REFOCUS_THREAD)
+    t.label("ok")
     t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_DONE)
     t.label("done")
-    t.raw("31 C0 48 83 C4 38 5E 5B C3")
+    t.raw("31 C0 48 83 C4 30 5F 5E 5B C3")
     thread = va(CAVE2_OFF)
-    code = t.build()
+    _place(data, CAVE2_OFF, CAVE2_END, t.build())
+    return thread
 
-    starter = thread + len(code)
+
+def emit_pad_wait_starter(data: bytearray, cave_off: int, cave_end: int,
+                          thread: int) -> tuple[int, int]:
+    """CreateThread(thread). Called with rsp = 8 mod 16. Returns (VA, cave_off)."""
+    starter = va(cave_off)
     s = Asm(starter)
     s.raw("48 83 EC 38 31 C9 31 D2")
     s._rel("4C 8D 05", thread)
     s.raw("45 31 C9 48 C7 44 24 20 00 00 00 00 48 C7 44 24 28 00 00 00 00")
     s._rel("FF15", gp.IAT_CREATE_THREAD)
     s.raw("48 83 C4 38 C3")
-    _place(data, CAVE2_OFF, CAVE2_END, code + s.build())
-    return thread, starter
+    return starter, _place(data, cave_off, cave_end, s.build())
 
 
 def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
@@ -88,7 +103,7 @@ def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     if any(b != 0xCC for b in data[CAVE2_OFF:CAVE2_END]):
         return None
     cave_off = gp.emit_refocus_thread(data, cave_off, cave_end)
-    _, start_pad_wait = emit_pad_wait(data)
+    start_pad_wait, cave_off = emit_pad_wait_starter(data, cave_off, cave_end, emit_pad_wait(data))
 
     def u32(v): return struct.pack("<I", v).hex()
 
