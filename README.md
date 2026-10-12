@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.13**
+**Current version: 5.7.14**
 
 ## Features
 
@@ -241,7 +241,8 @@ reloads the save headers, loads the newest regular save (NG+ clear data is
 left to the title menu) and answers "requested" when that succeeds; otherwise,
 and on every later visit to the title, it answers "not requested" and the
 title menu opens as usual. The title movie screen is not used while Auto Load
-is installed. The uninstallers remove the pak.
+is installed. After an automatic load, the window deactivate/activate
+refocus (see Skip Intro) runs at the game's first input check in the field. The uninstallers remove the pak.
 
 ### Masakado Unlock
 

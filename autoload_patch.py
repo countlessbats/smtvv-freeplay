@@ -33,10 +33,23 @@ SAVE_HEADER_SIZE  = 0x70
 HDR_USED, HDR_SLOT, HDR_INHERIT = 0x00, 0x04, 0x50
 
 STATE             = 0x1549A9801   # 0 = first title visit pending, 2 = done
+REFOCUS_ARMED     = 0x1549A9802   # 1 = refocus once the game next reads input
+
+# The field comes up with the controller reported as disconnected; the window
+# refocus is therefore deferred to the first Blueprint input check after the
+# load, when the game is running and reading the pad.
+PAD_CHECK_CALL    = 0x140CFDC1E   # IsActionPadCheckCore thunk: call impl
+PAD_CHECK_IMPL    = 0x140A849C0
+CAVE2_OFF, CAVE2_END = 0x503310, 0x503400   # spare 0xCC padding in .rdata
 
 
 def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     if bytes(data[off(TITLE_MOVIE_IMPL):off(TITLE_MOVIE_IMPL) + 8]) != TITLE_MOVIE_ORIG:
+        return None
+    o = off(PAD_CHECK_CALL)
+    if data[o] != 0xE8 or PAD_CHECK_CALL + 5 + int.from_bytes(data[o + 1:o + 5], "little", signed=True) != PAD_CHECK_IMPL:
+        return None
+    if any(b != 0xCC for b in data[CAVE2_OFF:CAVE2_END]):
         return None
     cave_off = gp.emit_refocus_thread(data, cave_off, cave_end)
 
@@ -62,7 +75,7 @@ def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     a.label("found")
     a.raw("89 D9").call(LOAD_SLOT).raw("84 C0").je("fail")
     a.raw("B0 01")._rel("88 05", gp.REFOCUS_DONE)   # title refocus not needed
-    gp.start_refocus_thread(a)
+    a._rel("88 05", REFOCUS_ARMED)
     a.raw("48 83 C4 20 5B B0 01 C3")              # "requested": load the map
     a.label("fail")
     a.raw("48 83 C4 20 5B")
@@ -72,6 +85,19 @@ def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     dest = va(cave_off)
     cave_off = _place(data, cave_off, cave_end, a.build())
     _jmp_site(data, TITLE_MOVIE_IMPL, dest, 8)
+
+    # First input check after an automatic load: refocus the window.
+    b = Asm(va(CAVE2_OFF))
+    b._rel("8A 05", REFOCUS_ARMED).raw("84 C0").je("tail")
+    b.raw("30 C0")._rel("88 05", REFOCUS_ARMED)
+    b.raw("51 52 41 50 41 51 48 83 EC 08")
+    gp.start_refocus_thread(b)
+    b.raw("48 83 C4 08 41 59 41 58 5A 59")
+    b.label("tail")
+    b.jmp(PAD_CHECK_IMPL)
+    dest2 = va(CAVE2_OFF)
+    _place(data, CAVE2_OFF, CAVE2_END, b.build())
+    data[o + 1:o + 5] = (dest2 - (PAD_CHECK_CALL + 5)).to_bytes(4, "little", signed=True)
     return cave_off
 
 
