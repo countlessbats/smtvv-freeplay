@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.8**
+**Current version: 5.7.9**
 
 ## Features
 
@@ -38,7 +38,8 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    battle. Magatsuhi gain during battle is unchanged.
 
 10. **Skip Intro** - no logo or warning screens, no opening movie and no
-    "press any button" screen: the game boots straight to the title menu.
+    "press any button" screen: after a few seconds of black screen the game
+    opens straight to the title menu.
 
 ## Requirements
 
@@ -211,9 +212,9 @@ stocks, plus one for the Kiou Sword key item. The uninstallers remove the pak.
 ### Skip Intro
 
 Another small override pak built at install time from your own `pakchunk0`.
-The logo screen's tick enters its graph at the "logos finished" node, so the
-logo level only waits for its resident assets, and the logo game mode no longer
-requests the title movie, so the title level opens its menu directly, as it
+The logo sequence starts at its last, invisible hold step, which is lengthened
+to four seconds so Steam Input has attached the controller before the title
+menu reads it, and the logo game mode no longer requests the title movie, so the title level opens its menu directly, as it
 does when you return to the title from in-game. The uninstallers remove the pak.
 
 ### Full Magatsuhi
