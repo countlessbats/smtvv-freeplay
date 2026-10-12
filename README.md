@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.5**
+**Current version: 5.7.6**
 
 ## Features
 
@@ -29,8 +29,11 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    release to fall. Pressing jump in mid-air starts rising again. While
    airborne you move 50% faster and turn almost instantly.
 
-8. **Free Growth Items** - Gospels, Grimoires and all Sutras are sold in the
-   shop from the start of the game for 0 Macca.
+8. **Free Growth Items** - Gospels, Grimoires, all Sutras, Balms and Incenses
+   are sold in the shop from the start of the game for 0 Macca.
+
+9. **Full Magatsuhi** - the Magatsuhi gauge is filled at the start of every
+   battle. Magatsuhi gain during battle is unchanged.
 
 ## Requirements
 
@@ -57,7 +60,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items).
+   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi).
 
 The installer backs up the original executable as:
 
@@ -84,7 +87,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all eight features. To install only some of them,
+With no switches, it installs all nine features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -96,6 +99,7 @@ add a skip-switch for each feature you do **not** want:
 --no-refill
 --no-jump
 --no-shop
+--no-magatsuhi
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -134,6 +138,7 @@ Optional patch flags:
 --no-refill
 --no-jump
 --no-shop
+--no-magatsuhi
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -192,8 +197,15 @@ return 0, so the compendium shows and charges 0 Macca.
 
 Like the NG+ miracle pak, this is a small override pak built at install time
 from your own `pakchunk0`: the item table's buying price for Gospels,
-Grimoires and Sutras is set to 0, their shop unlock conditions are cleared,
-and a shop entry is added for Gospels. The uninstallers remove the pak.
+Grimoires, Sutras, Balms and Incenses is set to 0, their shop unlock
+conditions are cleared, and shop entries are added for those the shop never
+stocks. The uninstallers remove the pak.
+
+### Full Magatsuhi
+
+Uses the same `SetNextStep` hook as Battle Refill (below): when a battle enters
+its first step, the player's Magatsuhi gauge is set to its maximum through the
+game's own setter.
 
 ### Battle Refill
 

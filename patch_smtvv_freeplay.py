@@ -26,8 +26,12 @@ Applies quality-of-life patches to the game executable and optional data paks:
   7. Superjump  -- hold jump to keep rising; faster air movement and
      near-instant turning while airborne.
 
-  8. Free Growth Items  -- Gospels, Grimoires and Sutras are sold from the
-     start for 0 Macca (data pak built from the player's game files).
+  8. Free Growth Items  -- Gospels, Grimoires, Sutras, Balms and Incenses
+     are sold from the start for 0 Macca (data pak built from the player's
+     game files).
+
+  9. Full Magatsuhi  -- the Magatsuhi gauge is filled at the start of every
+     battle.
 
 Executable patches share the same large CC cave in .rdata.
 
@@ -56,7 +60,7 @@ import shop_pak  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.5"
+MOD_VERSION = "5.7.6"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -299,6 +303,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
+    parser.add_argument("--no-magatsuhi", action="store_true",
+                        help="Skip the Full Magatsuhi patch")
     parser.add_argument("--no-shop", action="store_true",
                         help="Skip the Free Growth Items shop patch")
     parser.add_argument("--no-jump", action="store_true",
@@ -312,6 +318,7 @@ def main() -> None:
     do_compendium = not args.no_compendium
     do_refill = not args.no_refill
     do_jump = not args.no_jump
+    do_magatsuhi = not args.no_magatsuhi
     do_shop = not args.no_shop
 
     game_dir = locate_game_dir(args.game_dir)
@@ -374,6 +381,7 @@ def main() -> None:
                                 ("Compendium", do_compendium),
                                 ("Refill", do_refill),
                                 ("Jump", do_jump),
+                                ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop)] if on]
     total = len(enabled)
 
@@ -601,11 +609,12 @@ def main() -> None:
             print(f"    Cost formula  : 0x{DEVIL_COST_OFFSET:08X}  -> 0")
 
     # ==================================================================
-    # PATCH: Battle Refill / Multi-Jump
+    # PATCH: Battle Refill / Superjump / Full Magatsuhi
     # ==================================================================
     cave_end = cave_off + cave_len
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
-                               (do_jump, "Superjump", gameplay_patches.patch_jump)):
+                               (do_jump, "Superjump", gameplay_patches.patch_jump),
+                               (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi)):
         if not on:
             continue
         start = next_cave_off

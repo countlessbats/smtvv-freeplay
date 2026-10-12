@@ -1,6 +1,6 @@
 """
-Free Growth Items: Gospels, Grimoires and Sutras are sold by the shop from
-the start of the game for 0 Macca.
+Free Growth Items: Gospels, Grimoires, Sutras, Balms and Incenses are sold
+by the shop from the start of the game for 0 Macca.
 
 Both tables are MMI binary blobs ("TBL1" sections) extracted from the
 player's own pakchunk0 and repacked as a small override pak:
@@ -24,7 +24,9 @@ SHOP_TABLE = TABLE_ROOT + "Facility/Table/ShopTable"
 GOSPEL = 82
 GRIMOIRE = 83
 SUTRAS = list(range(98, 109))      # Battle .. Calamity Sutra
-FREE_ITEMS = [GOSPEL, GRIMOIRE] + SUTRAS
+BALMS = list(range(84, 91))       # Health .. Luck Balm
+INCENSES = list(range(91, 98))    # Health .. Luck Incense
+FREE_ITEMS = [GOSPEL, GRIMOIRE] + SUTRAS + BALMS + INCENSES
 
 ITEM_ROW = 100
 ITEM_ID_OFF = 16

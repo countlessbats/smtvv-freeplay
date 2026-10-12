@@ -32,7 +32,8 @@ set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
 set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
 set /p P6="   Battle Refill (battle items topped up at every battle start)? [Y/n]: "
 set /p P7="   Superjump (hold jump to rise, faster air control)? [Y/n]: "
-set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras free in shop)? [Y/n]: "
+set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)? [Y/n]: "
+set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -43,6 +44,7 @@ if /i "%P5%"=="n" set "FLAGS=!FLAGS! --no-compendium"
 if /i "%P6%"=="n" set "FLAGS=!FLAGS! --no-refill"
 if /i "%P7%"=="n" set "FLAGS=!FLAGS! --no-jump"
 if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
+if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
 goto :run_patcher
 
 :run_patcher

@@ -149,6 +149,45 @@ def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
 
 
 # ---------------------------------------------------------------------------
+# Full Magatsuhi: fill the player's Magatsuhi gauge as each battle starts
+# ---------------------------------------------------------------------------
+MAG_SET          = 0x140ABD7B0   # SetPlayerMAGGauge(value), clamps to max
+MAG_SET_ORIG     = bytes.fromhex("48895c240848896c2410")
+MAG_GET_MAX      = 0x140AB4BA0   # GetPlayerMAGGaugeMax() -> int
+MAG_GET_MAX_ORIG = bytes.fromhex("40534883ec40")
+
+
+def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None:
+    for t in SETNEXTSTEP_THUNKS:
+        if data[off(t)] != 0xE9:
+            return None
+    if data[off(MAG_SET):off(MAG_SET) + len(MAG_SET_ORIG)] != MAG_SET_ORIG or \
+       data[off(MAG_GET_MAX):off(MAG_GET_MAX) + len(MAG_GET_MAX_ORIG)] != MAG_GET_MAX_ORIG:
+        return None
+
+    # Chains onto whatever the thunk currently jumps to (the Battle Refill
+    # cave when that patch is installed).
+    for t in SETNEXTSTEP_THUNKS:
+        prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+        a = Asm(va(cave_off))
+        a.raw("53")                           # push rbx
+        a.raw("48 83 EC 20")                  # sub rsp, 20h
+        a.raw("48 89 CB")                     # mov rbx, rcx
+        a.call(prev)
+        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_PRE)
+        a.jne("done")
+        a.call(MAG_GET_MAX).raw("89 C1")     # mov ecx, eax
+        a.call(MAG_SET)
+        a.label("done")
+        a.raw("48 83 C4 20 5B C3")
+        code = a.build()
+        dest = va(cave_off)
+        cave_off = _place(data, cave_off, cave_end, code)
+        _jmp_site(data, t, dest, 5)
+    return cave_off
+
+
+# ---------------------------------------------------------------------------
 # Hold-to-ascend and air control (PlayerMovementComponent)
 # ---------------------------------------------------------------------------
 PM_ON_GROUND    = 0x1C8   # nonzero while grounded
