@@ -32,7 +32,7 @@ set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
 set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
 set /p P6="   Battle Refill (battle items topped up at every battle start)? [Y/n]: "
 set /p P7="   Superjump (hold jump to rise, faster air control)? [Y/n]: "
-set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)? [Y/n]: "
+set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses, Kiou Sword in shop)? [Y/n]: "
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
 

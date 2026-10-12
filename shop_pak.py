@@ -1,6 +1,7 @@
 """
 Free Growth Items: Gospels, Grimoires, Sutras, Balms and Incenses are sold
-by the shop from the start of the game for 0 Macca.
+by the shop from the start of the game for 0 Macca, along with the Kiou Sword
+key item.
 
 Both tables are MMI binary blobs ("TBL1" sections) extracted from the
 player's own pakchunk0 and repacked as a small override pak:
@@ -27,6 +28,8 @@ SUTRAS = list(range(98, 109))      # Battle .. Calamity Sutra
 BALMS = list(range(84, 91))       # Health .. Luck Balm
 INCENSES = list(range(91, 98))    # Health .. Luck Incense
 FREE_ITEMS = [GOSPEL, GRIMOIRE] + SUTRAS + BALMS + INCENSES
+KIOU_SWORD = 754                  # key item; key items carry no buying price
+SHOP_ITEMS = FREE_ITEMS + [KIOU_SWORD]
 
 ITEM_ROW = 100
 ITEM_ID_OFF = 16
@@ -71,14 +74,14 @@ def edit_shop_table(uasset: bytes, uexp: bytes) -> tuple[bytes, bytes]:
         o = base + i * SHOP_ROW
         item, sort = struct.unpack_from("<HH", data, o)
         max_sort = max(max_sort, sort)
-        if item in FREE_ITEMS:
+        if item in SHOP_ITEMS:
             present.add(item)
             struct.pack_into("<II", data, o + 4, 0, 0)
-    missing = [i for i in FREE_ITEMS if i not in present]
+    missing = [i for i in SHOP_ITEMS if i not in present]
     if not missing:
         return uasset, bytes(data)
 
-    # Append rows for items the shop never stocks (Gospel).
+    # Append rows for items the shop never stocks.
     extra = b"".join(struct.pack("<HHIII", item, max_sort + 1 + n, 0, 0, 0)
                      for n, item in enumerate(missing))
     grow = len(extra)

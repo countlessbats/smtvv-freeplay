@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.7**
+**Current version: 5.7.8**
 
 ## Features
 
@@ -30,7 +30,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    airborne you move 50% faster and turn almost instantly.
 
 8. **Free Growth Items** - Gospels, Grimoires, all Sutras, Balms and Incenses
-   are sold in the shop from the start of the game for 0 Macca.
+   are sold in the shop from the start of the game for 0 Macca. The shop also
+   stocks the Kiou Sword, the key item Masakado asks about before his
+   powered-up fight.
 
 9. **Full Magatsuhi** - the Magatsuhi gauge is filled at the start of every
    battle. Magatsuhi gain during battle is unchanged.
@@ -204,7 +206,7 @@ Like the NG+ miracle pak, this is a small override pak built at install time
 from your own `pakchunk0`: the item table's buying price for Gospels,
 Grimoires, Sutras, Balms and Incenses is set to 0, their shop unlock
 conditions are cleared, and shop entries are added for those the shop never
-stocks. The uninstallers remove the pak.
+stocks, plus one for the Kiou Sword key item. The uninstallers remove the pak.
 
 ### Skip Intro
 

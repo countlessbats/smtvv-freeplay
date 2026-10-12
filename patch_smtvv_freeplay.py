@@ -27,8 +27,8 @@ Applies quality-of-life patches to the game executable and optional data paks:
      near-instant turning while airborne.
 
   8. Free Growth Items  -- Gospels, Grimoires, Sutras, Balms and Incenses
-     are sold from the start for 0 Macca (data pak built from the player's
-     game files).
+     are sold from the start for 0 Macca, along with the Kiou Sword (data
+     pak built from the player's game files).
 
   9. Full Magatsuhi  -- the Magatsuhi gauge is filled at the start of every
      battle.
@@ -65,7 +65,7 @@ import boot_pak  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.7"
+MOD_VERSION = "5.7.8"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
