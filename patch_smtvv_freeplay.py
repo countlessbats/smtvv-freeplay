@@ -40,9 +40,8 @@ Applies quality-of-life patches to the game executable and optional data paks:
  11. Masakado Unlock  -- Masakado offers his powered-up fight without the
      Kiou Sword (data pak built from the player's game files).
 
- 12. Auto Load  -- when the game starts it goes straight into the most
-     recent save, without showing the title menu (data pak built from the
-     player's game files).
+ 12. Auto Load  -- when the game starts, the title menu loads the most
+     recent save by itself (data pak built from the player's game files).
 
 Executable patches share the same large CC cave in .rdata.
 
@@ -74,7 +73,7 @@ import autoload_patch  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.16"
+MOD_VERSION = "5.7.17"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)

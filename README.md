@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.16**
+**Current version: 5.7.17**
 
 ## Features
 
@@ -42,11 +42,11 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.
 
-12. **Auto Load** - when the game starts, it goes straight into your most
-    recent save without showing the title menu. It only happens at launch:
-    returning to the title from in-game opens the title menu as normal. With
-    Skip Intro as well, the game goes from launch to your save with nothing but
-    a black screen in between.
+12. **Auto Load** - when the game starts, the title menu loads your most
+    recent save by itself about a second after it appears. It only happens at
+    launch: returning to the title from in-game opens the title menu as normal.
+    With Skip Intro as well, the game goes from launch to your save with only a
+    brief look at the title menu in between.
 
 ## Requirements
 
@@ -233,18 +233,17 @@ the window deactivate/activate messages a tab-out and tab-in would send.
 
 ### Auto Load
 
-The title level asks `IsRequestedTitleMovie()` once, before any title UI
-exists. A small override pak built from your own `pakchunk0` points that
-branch at the level's own "load the game map" step, the one that normally
-runs after a save is loaded from the title. The executable hook on that call
-reloads the save headers, loads the newest regular save (NG+ clear data is
-left to the title menu) and answers "requested" when that succeeds; otherwise,
-and on every later visit to the title, it answers "not requested" and the
-title menu opens as usual. The title movie screen is not used while Auto Load
-is installed. After an automatic load, the window deactivate/activate
-refocus (see Skip Intro) runs while the game is in front without its Steam
-controller, until the game picks the controller up. The uninstallers remove
-the pak.
+While the title menu is up, the title level runs one step every frame. A
+small override pak built from your own `pakchunk0` puts a check in front of
+that step: when `IsRequestedTitleMovie()` answers "requested", the level goes
+to its own "load the game map" step, the one that normally runs after a save
+is loaded from the title. The executable hook on that call answers
+"requested" once per launch: when the title menu has been up for 1.2 seconds
+(after the Skip Intro window refocus, so the controller is ready) and the
+newest regular save has loaded (NG+ clear data is left to the title menu).
+Otherwise it returns the game's own answer, so the title movie, the title
+menu and returning to the title from in-game work as usual. The uninstallers
+remove the pak.
 
 ### Masakado Unlock
 

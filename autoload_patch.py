@@ -1,15 +1,17 @@
 """
-Auto Load: on the first boot of a session the game goes straight into the most
-recent save, without showing the title menu.
+Auto Load: on the first boot of a session the title menu goes straight into
+the most recent save, about a second after it appears.
 
-The title level asks IsRequestedTitleMovie() once, before any title UI exists.
-Its "requested" branch is redirected (data pak) to the level's own
-"load the game map" step -- the step that normally runs after a save has been
-loaded from the title. The executable hook on IsRequestedTitleMovie loads the
-newest regular save (reloading the save headers first) and answers "requested"
-when that succeeds; otherwise, and on every later visit to the title, it
-answers "not requested", so the title menu opens as usual. The title movie
-screen is therefore never shown while Auto Load is installed.
+While the title menu is up, the title level runs one step every frame. A
+small override pak built from the player's own files puts a check in front of
+that step: when IsRequestedTitleMovie() answers "requested", the level jumps
+to its own "load the game map" step -- the step that normally runs after a
+save has been loaded from the title. The executable hook on
+IsRequestedTitleMovie answers "requested" only once per boot: when the title
+menu has been up for AUTOLOAD_DELAY_MS (after the Skip Intro window refocus,
+when that patch is installed) and the newest regular save has loaded. In
+every other case it returns the game's own answer, so the title movie, the
+title menu and returning to the title from in-game work as usual.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from gameplay_patches import Asm, _jmp_site, _place, off, va
 # ---------------------------------------------------------------- executable
 TITLE_MOVIE_IMPL  = 0x140B8A200   # IsRequestedTitleMovie(): movzx eax,[flag]; ret
 TITLE_MOVIE_ORIG  = bytes.fromhex("0fb60519737703c3")
+TITLE_MOVIE_FLAG  = 0x144301520   # the byte the original returns
 LOAD_HEADERS      = 0x140B6E860   # LoadAllSaveDataHeader(bool)
 GET_NEWEST_SLOT   = 0x140B6DDB0   # GetMaxDateTimeSlotIndex() -> int
 LOAD_SLOT         = 0x140B6E6A0   # Load(slot) -> bool (synchronous)
@@ -32,69 +35,12 @@ SAVE_HEADER_NUM   = 0x1443005B8
 SAVE_HEADER_SIZE  = 0x70
 HDR_USED, HDR_SLOT, HDR_INHERIT = 0x00, 0x04, 0x50
 
-STATE             = 0x1549A9801   # 0 = first title visit pending, 2 = done
-
-# The game gets its controller through Steam Input, which only hands it over
-# after Steam sees the game window activated; booting straight into a save
-# leaves the game in front with no controller. After the load a thread checks
-# twice a second (for up to 2 minutes): while the game is in front, a pad is
-# present on XInput and the game's Steam controller type is still 0, it runs
-# the window refocus, up to REFOCUS_TRIES times. It stops as soon as the type
-# is set. Times and the try count are kept in spare bytes for diagnosis.
+STATE             = 0x1549A9801   # 0 = pending, 2 = done for this boot
+TITLE_SEEN_AT     = 0x1549A9810   # GetTickCount64 when the title was first seen
 IAT_GET_TICK_COUNT64 = 0x1549AED78
-STEAM_PAD_TYPE    = 0x1442F3F28   # GetConnectedGamepadType_ForSteam() value
-PAD_POLL_MS, PAD_POLL_COUNT = 500, 240
-REFOCUS_TRIES, REFOCUS_SETTLE_MS = 10, 1500
-LOG_LOAD, LOG_LAST, LOG_DONE, LOG_TRIES = 0x1549A9810, 0x1549A9818, 0x1549A9820, 0x1549A9828
+AUTOLOAD_DELAY_MS = 1200          # the title refocus takes about 850 ms
+
 CAVE2_OFF, CAVE2_END = 0x503310, 0x503400   # spare 0xCC padding in .rdata
-
-
-def emit_pad_wait(data: bytearray) -> int:
-    """Emit the pad-wait thread in CAVE2 and return its VA."""
-    def u32(v): return struct.pack("<I", v).hex()
-
-    t = Asm(va(CAVE2_OFF))
-    t.raw("53 56 57 48 83 EC 30")
-    t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_LOAD)
-    t.raw("BE" + u32(PAD_POLL_COUNT) + "31 FF")
-    t.label("poll")
-    t.raw("B9" + u32(PAD_POLL_MS))._rel("FF15", gp.IAT_SLEEP)
-    t._rel("FF15", gp.IAT_GET_FOREGROUND_WINDOW)
-    t.raw("48 85 C0").je("next")
-    t.raw("48 89 C1 48 8D 54 24 28")._rel("FF15", gp.IAT_GET_WINDOW_THREAD_PID)
-    t._rel("FF15", gp.IAT_GET_CURRENT_PID)
-    t.raw("3B 44 24 28").jne("next")
-    t._rel("0F B6 05", STEAM_PAD_TYPE).raw("84 C0").jne("ok")
-    t.raw("31 C9 48 8D 54 24 20")._rel("FF15", gp.IAT_XINPUT_GET_STATE)
-    t.raw("85 C0").jne("next")
-    t.raw("FF C7")._rel("89 3D", LOG_TRIES)
-    t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_LAST)
-    t.raw("31 C9").call(gp.REFOCUS_THREAD)
-    t.raw("B9" + u32(REFOCUS_SETTLE_MS))._rel("FF15", gp.IAT_SLEEP)
-    t.raw("83 FF" + "%02x" % REFOCUS_TRIES)._rel("0F83", "done")
-    t.label("next")
-    t.raw("FF CE").jne("poll")
-    t.jmp("done")
-    t.label("ok")
-    t._rel("FF15", IAT_GET_TICK_COUNT64)._rel("48 89 05", LOG_DONE)
-    t.label("done")
-    t.raw("31 C0 48 83 C4 30 5F 5E 5B C3")
-    thread = va(CAVE2_OFF)
-    _place(data, CAVE2_OFF, CAVE2_END, t.build())
-    return thread
-
-
-def emit_pad_wait_starter(data: bytearray, cave_off: int, cave_end: int,
-                          thread: int) -> tuple[int, int]:
-    """CreateThread(thread). Called with rsp = 8 mod 16. Returns (VA, cave_off)."""
-    starter = va(cave_off)
-    s = Asm(starter)
-    s.raw("48 83 EC 38 31 C9 31 D2")
-    s._rel("4C 8D 05", thread)
-    s.raw("45 31 C9 48 C7 44 24 20 00 00 00 00 48 C7 44 24 28 00 00 00 00")
-    s._rel("FF15", gp.IAT_CREATE_THREAD)
-    s.raw("48 83 C4 38 C3")
-    return starter, _place(data, cave_off, cave_end, s.build())
 
 
 def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
@@ -102,15 +48,22 @@ def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
         return None
     if any(b != 0xCC for b in data[CAVE2_OFF:CAVE2_END]):
         return None
-    cave_off = gp.emit_refocus_thread(data, cave_off, cave_end)
-    start_pad_wait, cave_off = emit_pad_wait_starter(data, cave_off, cave_end, emit_pad_wait(data))
+    # With Skip Intro, wait for its title refocus to have started.
+    refocus = data[off(gp.TITLE_TICK_IMPL)] == 0xE9
 
     def u32(v): return struct.pack("<I", v).hex()
 
-    a = Asm(va(cave_off))
-    a._rel("8A 05", STATE).raw("84 C0").jne("no")
-    a.raw("B0 02")._rel("88 05", STATE)
+    a = Asm(va(CAVE2_OFF))
+    a._rel("8A 05", STATE).raw("84 C0").jne("orig")
+    if refocus:
+        a._rel("8A 05", gp.REFOCUS_DONE).raw("84 C0").je("orig")
     a.raw("53 48 83 EC 20")                       # rsp now 16-byte aligned
+    a._rel("FF15", IAT_GET_TICK_COUNT64)
+    a._rel("48 8B 1D", TITLE_SEEN_AT).raw("48 85 DB").jne("seen")
+    a._rel("48 89 05", TITLE_SEEN_AT).jmp("fail")
+    a.label("seen")
+    a.raw("48 29 D8 48 3D" + u32(AUTOLOAD_DELAY_MS))._rel("0F 82", "fail")
+    a.raw("B0 02")._rel("88 05", STATE)
     a.raw("B1 01").call(LOAD_HEADERS)
     a.call(GET_NEWEST_SLOT).raw("89 C3")          # ebx = newest slot
     a._rel("48 8B 05", SAVE_HEADERS)
@@ -126,16 +79,14 @@ def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     a.jmp("fail")
     a.label("found")
     a.raw("89 D9").call(LOAD_SLOT).raw("84 C0").je("fail")
-    a.raw("B0 01")._rel("88 05", gp.REFOCUS_DONE)   # title refocus not needed
-    a.call(start_pad_wait)
     a.raw("48 83 C4 20 5B B0 01 C3")              # "requested": load the map
     a.label("fail")
     a.raw("48 83 C4 20 5B")
-    a.label("no")
-    a.raw("31 C0 C3")
+    a.label("orig")
+    a._rel("0F B6 05", TITLE_MOVIE_FLAG).raw("C3")
 
-    dest = va(cave_off)
-    cave_off = _place(data, cave_off, cave_end, a.build())
+    dest = va(CAVE2_OFF)
+    _place(data, CAVE2_OFF, CAVE2_END, a.build())
     _jmp_site(data, TITLE_MOVIE_IMPL, dest, 8)
     return cave_off
 
@@ -144,22 +95,89 @@ def patch_autoload(data: bytearray, cave_off: int, cave_end: int) -> int | None:
 AUTOLOAD_PAK = "pakchunk95_FreeplayAutoLoad_P.pak"
 LV_TITLE = "Project/Content/Level/Title/LV_Title"
 
-# LetBool(local, CallMath(IsRequestedTitleMovie)); JumpIfNot(->1842, local);
-# Jump(->15)  (15 = play the title movie)
-TITLE_BRANCH = bytes.fromhex(
-    "1400010000003c000000000000000100000068bfffffff16073207000000010000003c00"
-    "00000000000001000000060f000000")
-TITLE_BRANCH_JUMP_OFF = len(TITLE_BRANCH) - 4
-LOAD_MAP_ENTRY = 4399            # GetMapCommon -> BPI_LoadMap(true)
+UBERGRAPH = "ExecuteUbergraph_LV_Title"
+# Bytecode (memory) offsets in the title level's event graph.
+STEP3_ENTRY  = 4003   # title menu step, run every frame
+LOAD_MAP     = 4399   # GetMapCommon -> BPI_LoadMap(true)
+SCRIPT_END   = 4762   # Return(Nothing()); EndOfScript()
+# LetBool(CmpSuccess, NotEqual_IntInt(m_Step, 3)); JumpIfNot(->4003, CmpSuccess)
+STEP3_SWITCH = bytes.fromhex("07a30f00000001000000890000000000000001000000")
+IRTM_IMPORT  = bytes.fromhex("bfffffff")      # CallMath(IsRequestedTitleMovie)
 
 
-def edit_lv_title(uexp: bytes) -> bytes:
-    data = bytearray(uexp)
-    pos = data.find(TITLE_BRANCH)
-    if pos < 0 or data.find(TITLE_BRANCH, pos + 1) >= 0:
+def _jump(op: int, target: int) -> bytes:
+    return bytes([op]) + struct.pack("<I", target)
+
+
+class _Summary:
+    """Just enough of a UE4.27 package summary to move exports around."""
+
+    def __init__(self, ua: bytes):
+        p = 4
+        legacy = struct.unpack_from("<i", ua, p)[0]; p += 4
+        if legacy != -4:
+            p += 4
+        p += 8
+        p += 4 + 20 * struct.unpack_from("<i", ua, p)[0]       # custom versions
+        self.header = struct.unpack_from("<i", ua, p)[0]; p += 4
+        n = struct.unpack_from("<i", ua, p)[0]; p += 4         # folder name
+        p += n if n >= 0 else -2 * n
+        flags = struct.unpack_from("<I", ua, p)[0]; p += 4
+        p += 8                                                  # names
+        if not flags & 0x80000000:
+            n = struct.unpack_from("<i", ua, p)[0]; p += 4
+            p += n if n >= 0 else -2 * n
+        p += 8                                                  # gatherable text
+        self.export_count, self.export_offset = struct.unpack_from("<ii", ua, p)
+
+    EXPORT_SIZE = 104
+    SERIAL_SIZE, SERIAL_OFFSET = 28, 36
+
+    def export(self, i: int) -> int:
+        return self.export_offset + i * self.EXPORT_SIZE
+
+
+def edit_lv_title(umap: bytes, uexp: bytes) -> tuple[bytes, bytes]:
+    ua, ue = bytearray(umap), bytearray(uexp)
+    s = _Summary(ua)
+    e0 = s.export(0)
+    size0 = struct.unpack_from("<q", ua, e0 + s.SERIAL_SIZE)[0]
+    off0 = struct.unpack_from("<q", ua, e0 + s.SERIAL_OFFSET)[0] - s.header
+    # The event graph's bytecode: [mem size][stored size][code], ending in
+    # Return(Nothing()) EndOfScript().
+    tail = off0 + size0 - 12
+    code = None
+    for p in range(off0 + 8, tail):
+        if struct.unpack_from("<i", ue, p - 4)[0] == tail - p and ue[p] == 0x4C \
+                and struct.unpack_from("<I", ue, p + 1)[0] == SCRIPT_END:
+            code = p
+            break
+    if code is None or bytes(ue[tail - 3:tail]) != b"\x04\x0b\x53":
         raise RuntimeError("title level script not recognised - game update?")
-    struct.pack_into("<I", data, pos + TITLE_BRANCH_JUMP_OFF, LOAD_MAP_ENTRY)
-    return bytes(data)
+    sw = ue.find(STEP3_SWITCH, code, tail)
+    if sw < 0 or ue.find(STEP3_SWITCH, sw + 1, tail) >= 0 or IRTM_IMPORT not in ue[code:tail]:
+        raise RuntimeError("title level script not recognised - game update?")
+
+    # JumpIfNot(->4003, IsRequestedTitleMovie()); Jump(->4399)
+    new = (_jump(0x07, STEP3_ENTRY) + b"\x68" + IRTM_IMPORT + b"\x16"
+           + _jump(0x06, LOAD_MAP))
+    mem_grow, grow = 15 + 5, len(new)
+    struct.pack_into("<I", ue, code + 1, SCRIPT_END + mem_grow)   # PushExecFlow(->Return)
+    struct.pack_into("<I", ue, sw + 1, SCRIPT_END)                 # step 3 -> new check
+    ue[tail - 3:tail - 3] = new
+    struct.pack_into("<i", ue, code - 8, struct.unpack_from("<i", ue, code - 8)[0] + mem_grow)
+    struct.pack_into("<i", ue, code - 4, struct.unpack_from("<i", ue, code - 4)[0] + grow)
+
+    struct.pack_into("<q", ua, e0 + s.SERIAL_SIZE, size0 + grow)
+    for i in range(1, s.export_count):
+        o = s.export(i) + s.SERIAL_OFFSET
+        struct.pack_into("<q", ua, o, struct.unpack_from("<q", ua, o)[0] + grow)
+    bulk = struct.pack("<q", len(umap) + len(uexp) - 4)
+    b = ua.find(bulk)
+    if b < 0 or ua.find(bulk, b + 1) >= 0:
+        raise RuntimeError("title level header not recognised - game update?")
+    struct.pack_into("<q", ua, b, len(umap) + len(uexp) - 4 + grow)
+    return bytes(ua), bytes(ue)
 
 
 def build_autoload_pak(game_dir: str, paks_subpath: str, source_pak: str,
@@ -173,10 +191,9 @@ def build_autoload_pak(game_dir: str, paks_subpath: str, source_pak: str,
     if not os.path.isfile(src):
         raise RuntimeError(f"{source_pak} not found in {paks_dir}")
 
-    files = {
-        LV_TITLE + ".umap": run_repak(repak, "get", src, LV_TITLE + ".umap"),
-        LV_TITLE + ".uexp": edit_lv_title(run_repak(repak, "get", src, LV_TITLE + ".uexp")),
-    }
+    umap, uexp = edit_lv_title(run_repak(repak, "get", src, LV_TITLE + ".umap"),
+                               run_repak(repak, "get", src, LV_TITLE + ".uexp"))
+    files = {LV_TITLE + ".umap": umap, LV_TITLE + ".uexp": uexp}
     staging = tempfile.mkdtemp(prefix="smtvv_autoload_")
     try:
         for entry, blob in files.items():
