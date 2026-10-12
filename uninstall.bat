@@ -54,6 +54,10 @@ if exist "%GAMEDIR%\Project\Content\Paks\pakchunk97_FreeplayBoot_P.pak" (
     echo  Removing intro data pak...
     del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk97_FreeplayBoot_P.pak" >nul 2>nul
 )
+if exist "%GAMEDIR%\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" (
+    echo  Removing quest data pak...
+    del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" >nul 2>nul
+)
 
 if exist "%BINDIR%\xinput1_3.dll" (
     call :remove_legacy_superjump

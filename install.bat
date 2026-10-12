@@ -32,9 +32,10 @@ set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
 set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
 set /p P6="   Battle Refill (battle items topped up at every battle start)? [Y/n]: "
 set /p P7="   Superjump (hold jump to rise, faster air control)? [Y/n]: "
-set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses, Kiou Sword in shop)? [Y/n]: "
+set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)? [Y/n]: "
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
+set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -47,6 +48,7 @@ if /i "%P7%"=="n" set "FLAGS=!FLAGS! --no-jump"
 if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
 if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
 if /i "%P10%"=="n" set "FLAGS=!FLAGS! --no-intro"
+if /i "%P11%"=="n" set "FLAGS=!FLAGS! --no-masakado"
 goto :run_patcher
 
 :run_patcher
@@ -137,6 +139,10 @@ if exist "!GAMEDIR!\Project\Content\Paks\pakchunk98_FreeplayShop_P.pak" (
 if exist "!GAMEDIR!\Project\Content\Paks\pakchunk97_FreeplayBoot_P.pak" (
     echo  Removing intro data pak...
     del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk97_FreeplayBoot_P.pak" >nul 2>nul
+)
+if exist "!GAMEDIR!\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" (
+    echo  Removing quest data pak...
+    del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" >nul 2>nul
 )
 if exist "!BINDIR!\xinput1_3.dll" (
     call :remove_legacy_superjump

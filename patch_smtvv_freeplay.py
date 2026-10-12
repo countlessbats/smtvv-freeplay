@@ -27,8 +27,8 @@ Applies quality-of-life patches to the game executable and optional data paks:
      near-instant turning while airborne.
 
   8. Free Growth Items  -- Gospels, Grimoires, Sutras, Balms and Incenses
-     are sold from the start for 0 Macca, along with the Kiou Sword (data
-     pak built from the player's game files).
+     are sold from the start for 0 Macca (data pak built from the player's
+     game files).
 
   9. Full Magatsuhi  -- the Magatsuhi gauge is filled at the start of every
      battle.
@@ -36,6 +36,9 @@ Applies quality-of-life patches to the game executable and optional data paks:
  10. Skip Intro  -- no logo or warning screens, opening movie or "press any
      button" screen; the game boots straight to the title menu (data pak
      built from the player's game files).
+
+ 11. Masakado Unlock  -- Masakado offers his powered-up fight without the
+     Kiou Sword (data pak built from the player's game files).
 
 Executable patches share the same large CC cave in .rdata.
 
@@ -60,12 +63,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import gameplay_patches  # noqa: E402
 import shop_pak  # noqa: E402
 import boot_pak  # noqa: E402
+import quest_pak  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.9"
+MOD_VERSION = "5.7.10"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -308,6 +312,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
+    parser.add_argument("--no-masakado", action="store_true",
+                        help="Skip the Masakado Unlock patch")
     parser.add_argument("--no-intro", action="store_true",
                         help="Skip the Skip Intro patch")
     parser.add_argument("--no-magatsuhi", action="store_true",
@@ -327,6 +333,7 @@ def main() -> None:
     do_jump = not args.no_jump
     do_magatsuhi = not args.no_magatsuhi
     do_intro = not args.no_intro
+    do_masakado = not args.no_masakado
     do_shop = not args.no_shop
 
     game_dir = locate_game_dir(args.game_dir)
@@ -352,7 +359,7 @@ def main() -> None:
     # the patches selected *this* run: remove it here and rebuild it
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
-    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK):
+    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -391,7 +398,8 @@ def main() -> None:
                                 ("Jump", do_jump),
                                 ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop),
-                                ("Intro", do_intro)] if on]
+                                ("Intro", do_intro),
+                                ("Masakado", do_masakado)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -665,6 +673,21 @@ def main() -> None:
             print(f"    Data pak      : {boot_pak.BOOT_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: intro data pak not built - {exc}")
+
+    # ==================================================================
+    # PATCH: Masakado Unlock (data pak only)
+    # ==================================================================
+    if do_masakado:
+        patch_num += 1
+        print(f"\n  [{patch_num}/{total}] Masakado Unlock")
+        repak = find_repak()
+        try:
+            if repak is None:
+                raise RuntimeError("bundled repak tool not found")
+            quest_pak.build_quest_pak(game_dir, PAKS_SUBPATH, repak, run_repak)
+            print(f"    Data pak      : {quest_pak.QUEST_PAK}")
+        except RuntimeError as exc:
+            print(f"    WARNING: quest data pak not built - {exc}")
 
     # ------------------------------------------------------------------
     # Backup & save

@@ -59,6 +59,12 @@ if [ -f "$BOOT_PAK" ]; then
     rm -f "$BOOT_PAK"
 fi
 
+QUEST_PAK="$GAMEDIR/Project/Content/Paks/pakchunk96_FreeplayQuest_P.pak"
+if [ -f "$QUEST_PAK" ]; then
+    echo "Removing quest data pak..."
+    rm -f "$QUEST_PAK"
+fi
+
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"

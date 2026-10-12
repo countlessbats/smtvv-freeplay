@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.9**
+**Current version: 5.7.10**
 
 ## Features
 
@@ -30,9 +30,7 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    airborne you move 50% faster and turn almost instantly.
 
 8. **Free Growth Items** - Gospels, Grimoires, all Sutras, Balms and Incenses
-   are sold in the shop from the start of the game for 0 Macca. The shop also
-   stocks the Kiou Sword, the key item Masakado asks about before his
-   powered-up fight.
+   are sold in the shop from the start of the game for 0 Macca.
 
 9. **Full Magatsuhi** - the Magatsuhi gauge is filled at the start of every
    battle. Magatsuhi gain during battle is unchanged.
@@ -40,6 +38,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 10. **Skip Intro** - no logo or warning screens, no opening movie and no
     "press any button" screen: after a few seconds of black screen the game
     opens straight to the title menu.
+
+11. **Masakado Unlock** - Masakado offers his powered-up fight without the
+    Kiou Sword.
 
 ## Requirements
 
@@ -66,7 +67,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro).
+   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock).
 
 The installer backs up the original executable as:
 
@@ -93,7 +94,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all ten features. To install only some of them,
+With no switches, it installs all eleven features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -107,6 +108,7 @@ add a skip-switch for each feature you do **not** want:
 --no-shop
 --no-magatsuhi
 --no-intro
+--no-masakado
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -147,6 +149,7 @@ Optional patch flags:
 --no-shop
 --no-magatsuhi
 --no-intro
+--no-masakado
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -207,7 +210,7 @@ Like the NG+ miracle pak, this is a small override pak built at install time
 from your own `pakchunk0`: the item table's buying price for Gospels,
 Grimoires, Sutras, Balms and Incenses is set to 0, their shop unlock
 conditions are cleared, and shop entries are added for those the shop never
-stocks, plus one for the Kiou Sword key item. The uninstallers remove the pak.
+stocks. The uninstallers remove the pak.
 
 ### Skip Intro
 
@@ -216,6 +219,14 @@ The logo sequence starts at its last, invisible hold step, which is lengthened
 to four seconds so Steam Input has attached the controller before the title
 menu reads it, and the logo game mode no longer requests the title movie, so the title level opens its menu directly, as it
 does when you return to the title from in-game. The uninstallers remove the pak.
+
+### Masakado Unlock
+
+A small override pak built at install time from your own `pakchunk3`.
+Masakado's sub-quest script checks for the Kiou Sword in three places before
+the scene that leads to his powered-up battle; each check's conditional jump is
+pointed at the next instruction, so the script carries on as if the sword were
+held. The uninstallers remove the pak.
 
 ### Full Magatsuhi
 
