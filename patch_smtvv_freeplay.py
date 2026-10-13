@@ -11,7 +11,7 @@ Applies quality-of-life patches to the game executable and optional data paks:
      Hooks SetRyuketsuSaveAccess (0x00CD57D0) to call PartyAllCure
      (VA 0x140AB94B0) before the original leyline logic runs.
 
-  3. Miman Reveal  -- leyline access marks Miman map positions as revealed.
+  3. Miman Reveal  -- every Miman position is shown on the map.
 
   4. NG+ Miracles  -- selected NG+ miracles are visible and purchasable
      before clearing the game.
@@ -69,7 +69,7 @@ import quest_pak  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.18"
+MOD_VERSION = "5.7.19"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -110,12 +110,11 @@ RYUKETSU_TRAMP_ORIG   = bytes([0xE9, 0x8B, 0xD5, 0x65, 0x0A])
 # so it can be called with any register state.
 PARTY_ALL_CURE_VA = 0x140AB94B0
 
-# SetMimanPositionFlag C++ implementation  (reveal miman map positions)
-# Self-contained: fetches MapDataManager singleton internally.
-# Signature: SetMimanPositionFlag(int index, bool revealed)
-#   ECX = miman save-buffer index,  DL = 1 to reveal
-SET_MIMAN_POS_FLAG_VA = 0x140AE28B0   # VA of impl at file 0x00AE1EB0
-MIMAN_INDEX_MAX = 200                  # generous upper bound (game has ~200 mimans)
+# CheckMimanPositionFlag C++ implementation  (is a miman shown on the map?)
+# Signature: bool CheckMimanPositionFlag(int index).  The map asks this when
+# it builds its markers; patched to "mov al, 1; ret" so every position shows.
+MIMAN_POS_CHECK_OFFSET = 0x00ADB180   # VA 0x140ADBB80
+MIMAN_POS_CHECK_ORIG   = bytes.fromhex("48895c240848896c2410488974241857")
 
 # NG+ Miracle unlock patches
 # IsAddedSelectableGodParameterSkill trampoline — controls shop visibility
@@ -447,12 +446,12 @@ def main() -> None:
         next_cave_off = p_off + ((len(sc) + 15) & ~15)
 
     # ==================================================================
-    # PATCH: Leyline hook (Heal + Mimans share the same hook point)
+    # PATCH: Leyline Auto-Heal
     # ==================================================================
-    if do_heal or do_mimans:
+    if do_heal:
         ry_actual = bytes(data[RYUKETSU_TRAMP_OFFSET : RYUKETSU_TRAMP_OFFSET + 5])
         if ry_actual != RYUKETSU_TRAMP_ORIG:
-            print(f"\n  WARNING: Leyline AOB mismatch — skipping heal/miman patches")
+            print(f"\n  WARNING: Leyline AOB mismatch — skipping heal patch")
         else:
             ry_disp     = struct.unpack_from("<i", data, RYUKETSU_TRAMP_OFFSET + 1)[0]
             ry_tramp_va = file_to_va(RYUKETSU_TRAMP_OFFSET)
@@ -468,27 +467,9 @@ def main() -> None:
             hsc += b"\x41\x51"                 # push r9
             hsc += b"\x53"                     # push rbx
             hsc += b"\x48\x83\xEC\x20"        # sub rsp, 20h
-
-            if do_heal:
-                hsc += b"\xE8"                 # call PartyAllCure
-                cf = h_va + len(hsc) + 4
-                hsc += struct.pack("<i", PARTY_ALL_CURE_VA - cf)
-
-            if do_mimans:
-                hsc += b"\x33\xDB"             # xor ebx, ebx
-                loop_top = len(hsc)
-                hsc += b"\x8B\xCB"             # mov ecx, ebx
-                hsc += b"\xB2\x01"             # mov dl, 1
-                hsc += b"\xE8"                 # call SetMimanPositionFlag
-                cf2 = h_va + len(hsc) + 4
-                hsc += struct.pack("<i", SET_MIMAN_POS_FLAG_VA - cf2)
-                hsc += b"\xFF\xC3"             # inc ebx
-                hsc += b"\x81\xFB"             # cmp ebx, MAX
-                hsc += struct.pack("<I", MIMAN_INDEX_MAX)
-                jl_off = loop_top - (len(hsc) + 2)
-                hsc += b"\x7C"
-                hsc += struct.pack("b", jl_off)
-
+            hsc += b"\xE8"                     # call PartyAllCure
+            cf = h_va + len(hsc) + 4
+            hsc += struct.pack("<i", PARTY_ALL_CURE_VA - cf)
             hsc += b"\x48\x83\xC4\x20"        # add rsp, 20h
             hsc += b"\x5B"                     # pop rbx
             hsc += b"\x41\x59"                 # pop r9
@@ -504,16 +485,25 @@ def main() -> None:
             struct.pack_into("<i", data, RYUKETSU_TRAMP_OFFSET + 1,
                              h_va - (ry_tramp_va + 5))
 
-            parts = []
-            if do_heal:
-                parts.append("Auto-Heal")
-            if do_mimans:
-                parts.append(f"Reveal Mimans (x{MIMAN_INDEX_MAX})")
             patch_num += 1
-            print(f"\n  [{patch_num}/{total}] Leyline: {' + '.join(parts)}")
+            print(f"\n  [{patch_num}/{total}] Leyline Auto-Heal")
             print(f"    Code cave     : 0x{h_off:08X}  ({len(hsc)} bytes)")
             print(f"    Trampoline    : 0x{RYUKETSU_TRAMP_OFFSET:08X}  -> cave")
             next_cave_off = h_off + ((len(hsc) + 15) & ~15)
+
+    # ==================================================================
+    # PATCH: Miman Reveal
+    # ==================================================================
+    if do_mimans:
+        actual = bytes(data[MIMAN_POS_CHECK_OFFSET : MIMAN_POS_CHECK_OFFSET + 16])
+        if actual != MIMAN_POS_CHECK_ORIG:
+            print(f"\n  WARNING: Miman AOB mismatch at "
+                  f"0x{MIMAN_POS_CHECK_OFFSET:08X} - skipping")
+        else:
+            data[MIMAN_POS_CHECK_OFFSET : MIMAN_POS_CHECK_OFFSET + 3] = b"\xB0\x01\xC3"
+            patch_num += 1
+            print(f"\n  [{patch_num}/{total}] Miman Reveal")
+            print(f"    Position check: 0x{MIMAN_POS_CHECK_OFFSET:08X}  -> true")
 
     # ==================================================================
     # PATCH: NG+ Miracles Unlock

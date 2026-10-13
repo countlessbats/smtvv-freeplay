@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.18**
+**Current version: 5.7.19**
 
 ## Features
 
@@ -10,8 +10,8 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    Discover an essence once, then apply it repeatedly for skills or
    resistances.
 
-2. **Miman Reveal** - Miman positions are pre-revealed on the map when
-   leyline logic runs.
+2. **Miman Reveal** - every Miman's position is shown on the map from the
+   start of the game.
 
 3. **Leyline Auto-Heal** - accessing a leyline fount restores the full
    party's HP and MP for free.
@@ -196,8 +196,9 @@ logic.
 
 ### Miman Reveal
 
-The same leyline hook can also loop through Miman save-buffer indexes and call
-`SetMimanPositionFlag(index, true)`.
+The map asks `CheckMimanPositionFlag(index)` for each Miman when it builds its
+markers. The patch makes that function always return true, so every position
+shows without changing save data.
 
 ### Free Compendium
 
