@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.19**
+**Current version: 5.7.20**
 
 ## Features
 
@@ -42,6 +42,18 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.
 
+12. **Timed Quest Markers** - during the time-limited collection quests, every
+    collectible still to be found is marked on the map and minimap as a quest
+    target, and its marker disappears when you pick it up: the Young Stars
+    (She Who Rules the Night), the Four-Leaf Clovers (Cu Chulainn and
+    Scathach) and the Poisonous Flower Buds placed in the field (Mad Gasser;
+    buds dropped by Zhens are not marked). The markers reset with every run.
+
+13. **Newborn Clears Compendium** - starting a New Game+ with the Newborn
+    method also empties the Demon Compendium, so the compendium, reverse
+    fusion and summoning start fresh. The English carry-over lists on the New
+    Game+ screen say so; Reborn and Godborn still keep the compendium.
+
 ## Requirements
 
 - Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
@@ -67,7 +79,8 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock).
+   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock,
+   Timed Quest Markers, Newborn Clears Compendium).
 
 The installer backs up the original executable as:
 
@@ -94,7 +107,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all eleven features. To install only some of them,
+With no switches, it installs all thirteen features. To install only some of them,
 add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -109,6 +122,8 @@ add a skip-switch for each feature you do **not** want:
 --no-magatsuhi
 --no-intro
 --no-masakado
+--no-markers
+--no-newborn
 ```
 
 For example, to install only Reusable Essences and Miman Reveal, skipping
@@ -150,6 +165,8 @@ Optional patch flags:
 --no-magatsuhi
 --no-intro
 --no-masakado
+--no-markers
+--no-newborn
 ```
 
 `patch_essences.py` is kept as a compatibility wrapper for older instructions.
@@ -234,9 +251,28 @@ held. The uninstallers remove the pak.
 
 ### Full Magatsuhi
 
-Uses the same `SetNextStep` hook as Battle Refill (below): when a battle enters
-its first step, the player's Magatsuhi gauge is set to its maximum through the
-game's own setter.
+Uses the same `SetNextStep` hook as Battle Refill (below): as a battle steps
+through its opening steps (ready, pre-battle, encounter and start event, each
+run once before the first turn), the player's Magatsuhi gauge is set to its
+maximum through the game's own setter.
+
+### Timed Quest Markers
+
+A small override pak built at install time from your own `pakchunk0`. Each
+collectible of the three quests is added to its map's minimap icon table as a
+quest-target marker at the collectible's placement in the quest's event level.
+A marker shows while the quest's collection counter is active and hides once
+that collectible's own flag is set; the quests clear those flags at the start
+of every run. The uninstallers remove the pak.
+
+### Newborn Clears Compendium
+
+The Newborn carry-over routine is followed by the game's own compendium reset,
+which refills the compendium with unregistered entries, exactly as a new game
+starts. A small override pak built from your own `pakchunk0` updates the
+English carry-over lists: Newborn no longer lists the Demon Compendium and says
+it starts empty, and Reborn, whose list builds on Newborn's, lists it. Other
+languages show the original lists. The uninstallers remove the pak.
 
 ### Battle Refill
 

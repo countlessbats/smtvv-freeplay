@@ -65,6 +65,18 @@ if [ -f "$QUEST_PAK" ]; then
     rm -f "$QUEST_PAK"
 fi
 
+MAP_PAK="$GAMEDIR/Project/Content/Paks/pakchunk95_FreeplayMap_P.pak"
+if [ -f "$MAP_PAK" ]; then
+    echo "Removing map data pak..."
+    rm -f "$MAP_PAK"
+fi
+
+NEWBORN_PAK="$GAMEDIR/Project/Content/Paks/pakchunk94_FreeplayNewborn_P.pak"
+if [ -f "$NEWBORN_PAK" ]; then
+    echo "Removing carry-over text pak..."
+    rm -f "$NEWBORN_PAK"
+fi
+
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"

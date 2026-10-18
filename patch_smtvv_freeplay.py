@@ -40,6 +40,15 @@ Applies quality-of-life patches to the game executable and optional data paks:
  11. Masakado Unlock  -- Masakado offers his powered-up fight without the
      Kiou Sword (data pak built from the player's game files).
 
+ 12. Timed Quest Markers  -- the collectibles of the time-limited quests
+     (Young Stars, Four-Leaf Clovers, Poisonous Flower Buds) are marked on
+     the map and minimap during a run (data pak built from the player's
+     game files).
+
+ 13. Newborn Clears Compendium  -- a New Game+ started with Newborn also
+     empties the Demon Compendium; the carry-over lists say so (data pak
+     built from the player's game files).
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -64,12 +73,14 @@ import gameplay_patches  # noqa: E402
 import shop_pak  # noqa: E402
 import boot_pak  # noqa: E402
 import quest_pak  # noqa: E402
+import map_pak  # noqa: E402
+import newborn  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.19"
+MOD_VERSION = "5.7.20"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -321,6 +332,10 @@ def main() -> None:
                         help="Skip the Free Growth Items shop patch")
     parser.add_argument("--no-jump", action="store_true",
                         help="Skip the Superjump patch")
+    parser.add_argument("--no-markers", action="store_true",
+                        help="Skip the Timed Quest Markers patch")
+    parser.add_argument("--no-newborn", action="store_true",
+                        help="Skip the Newborn Clears Compendium patch")
     args = parser.parse_args()
 
     do_essences = not args.no_essences
@@ -334,6 +349,8 @@ def main() -> None:
     do_intro = not args.no_intro
     do_masakado = not args.no_masakado
     do_shop = not args.no_shop
+    do_markers = not args.no_markers
+    do_newborn = not args.no_newborn
 
     game_dir = locate_game_dir(args.game_dir)
     if game_dir is None:
@@ -358,7 +375,8 @@ def main() -> None:
     # the patches selected *this* run: remove it here and rebuild it
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
-    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK):
+    for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK,
+                map_pak.MAP_PAK, newborn.NEWBORN_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -398,7 +416,9 @@ def main() -> None:
                                 ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop),
                                 ("Intro", do_intro),
-                                ("Masakado", do_masakado)] if on]
+                                ("Masakado", do_masakado),
+                                ("Markers", do_markers),
+                                ("Newborn", do_newborn)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -685,6 +705,43 @@ def main() -> None:
             print(f"    Data pak      : {quest_pak.QUEST_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: quest data pak not built - {exc}")
+
+    # ==================================================================
+    # PATCH: Timed Quest Markers (data pak only)
+    # ==================================================================
+    if do_markers:
+        patch_num += 1
+        print(f"\n  [{patch_num}/{total}] Timed Quest Markers")
+        repak = find_repak()
+        try:
+            if repak is None:
+                raise RuntimeError("bundled repak tool not found")
+            map_pak.build_map_pak(game_dir, PAKS_SUBPATH, repak, run_repak)
+            print(f"    Data pak      : {map_pak.MAP_PAK}")
+        except RuntimeError as exc:
+            print(f"    WARNING: map data pak not built - {exc}")
+
+    # ==================================================================
+    # PATCH: Newborn Clears Compendium (exe + text pak)
+    # ==================================================================
+    if do_newborn:
+        start = next_cave_off
+        result = newborn.patch_newborn(data, next_cave_off, cave_end)
+        if result is None:
+            print("\n  WARNING: Newborn Clears Compendium AOB mismatch - skipping")
+        else:
+            next_cave_off = result
+            patch_num += 1
+            print(f"\n  [{patch_num}/{total}] Newborn Clears Compendium")
+            print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
+            repak = find_repak()
+            try:
+                if repak is None:
+                    raise RuntimeError("bundled repak tool not found")
+                newborn.build_newborn_pak(game_dir, PAKS_SUBPATH, repak, run_repak)
+                print(f"    Data pak      : {newborn.NEWBORN_PAK}")
+            except RuntimeError as exc:
+                print(f"    WARNING: carry-over text pak not built - {exc}")
 
     # ------------------------------------------------------------------
     # Backup & save

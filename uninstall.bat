@@ -58,6 +58,14 @@ if exist "%GAMEDIR%\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" (
     echo  Removing quest data pak...
     del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" >nul 2>nul
 )
+if exist "%GAMEDIR%\Project\Content\Paks\pakchunk95_FreeplayMap_P.pak" (
+    echo  Removing map data pak...
+    del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk95_FreeplayMap_P.pak" >nul 2>nul
+)
+if exist "%GAMEDIR%\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" (
+    echo  Removing carry-over text pak...
+    del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" >nul 2>nul
+)
 
 if exist "%BINDIR%\xinput1_3.dll" (
     call :remove_legacy_superjump

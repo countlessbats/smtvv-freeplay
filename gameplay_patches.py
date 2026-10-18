@@ -49,6 +49,7 @@ class Asm:
     def je(self, t):   return self._rel("0F84", t)
     def jne(self, t):  return self._rel("0F85", t)
     def jle(self, t):  return self._rel("0F8E", t)
+    def ja(self, t):   return self._rel("0F87", t)
 
     def rip(self, opcode: str, label: str) -> "Asm":
         """Instruction ending in a RIP-relative disp32 to a data label."""
@@ -99,6 +100,8 @@ def _jmp_site(data: bytearray, site_va: int, dest_va: int, length: int,
 SETNEXTSTEP_THUNKS = [0x140C2C2D0]
 BTL_NEXTSTEP_OFF  = 0x262   # m_NextStep
 BTL_STEP_PRE      = 3
+BTL_STEP_READY       = 2   # E_BTL_STEP_READY .. E_BTL_STEP_START_EVENT run once per
+BTL_STEP_START_EVENT = 5   # battle, before the first turn
 
 ITEM_GET          = 0x140ACE9A0   # ItemGet(id, count)  (adds)
 ITEM_GET_MAX      = 0x140ACF220   # ItemGetMaxNum(id) -> int
@@ -174,8 +177,10 @@ def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None
         a.raw("48 83 EC 20")                  # sub rsp, 20h
         a.raw("48 89 CB")                     # mov rbx, rcx
         a.call(prev)
-        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_PRE)
-        a.jne("done")
+        a.raw("0F B6 83").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex())   # movzx eax, m_NextStep
+        a.raw("83 E8").raw("%02x" % BTL_STEP_READY)                       # sub eax, READY
+        a.raw("83 F8").raw("%02x" % (BTL_STEP_START_EVENT - BTL_STEP_READY))
+        a.ja("done")                          # only READY .. START_EVENT
         a.call(MAG_GET_MAX).raw("89 C1")     # mov ecx, eax
         a.call(MAG_SET)
         a.label("done")

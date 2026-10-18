@@ -36,6 +36,8 @@ set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses fre
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
 set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
+set /p P12="   Timed Quest Markers (timed-quest collectibles marked on the map)? [Y/n]: "
+set /p P13="   Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)? [Y/n]: "
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -49,6 +51,8 @@ if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
 if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
 if /i "%P10%"=="n" set "FLAGS=!FLAGS! --no-intro"
 if /i "%P11%"=="n" set "FLAGS=!FLAGS! --no-masakado"
+if /i "%P12%"=="n" set "FLAGS=!FLAGS! --no-markers"
+if /i "%P13%"=="n" set "FLAGS=!FLAGS! --no-newborn"
 goto :run_patcher
 
 :run_patcher
@@ -143,6 +147,14 @@ if exist "!GAMEDIR!\Project\Content\Paks\pakchunk97_FreeplayBoot_P.pak" (
 if exist "!GAMEDIR!\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" (
     echo  Removing quest data pak...
     del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk96_FreeplayQuest_P.pak" >nul 2>nul
+)
+if exist "!GAMEDIR!\Project\Content\Paks\pakchunk95_FreeplayMap_P.pak" (
+    echo  Removing map data pak...
+    del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk95_FreeplayMap_P.pak" >nul 2>nul
+)
+if exist "!GAMEDIR!\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" (
+    echo  Removing carry-over text pak...
+    del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" >nul 2>nul
 )
 if exist "!BINDIR!\xinput1_3.dll" (
     call :remove_legacy_superjump
