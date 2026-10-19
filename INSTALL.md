@@ -17,7 +17,10 @@ editions use a different executable and are not supported.
 1. Download and **extract** the zip (don't run it from inside the archive).
 2. Close the game.
 3. Double-click **`install.bat`**.
-4. Choose **[1] All patches**, or **[2]** to choose individually.
+4. Answer one question per mod: **Y** to install it, Enter to skip it. For
+   Autosave After Battle, type the save slot (1-20) it should use.
+   Run `install.bat` again later to add or remove mods; it shows which ones are
+   installed and offers to uninstall all of them.
 5. If it can't find the game automatically, paste your SMT5V folder path when
    asked (Steam → right-click SMT5V:V → Manage → Browse local files → copy the
    path from the address bar).
@@ -74,8 +77,7 @@ Only the installer differs.
    `--autosave-slot N` with a save slot from 1 to 20. That slot is overwritten
    after every battle.
 
-   On Windows, choose **[2] Choose individually** in `install.bat` and enter a
-   slot number at the autosave question.
+   On Windows, `install.bat` asks for the slot.
 
    If the script can't find the game automatically, it will ask you to paste your
    SMT5V folder path.
@@ -86,7 +88,8 @@ Only the installer differs.
 
 ## Uninstall
 
-- **Windows:** run `install.bat` → **[3] Uninstall**, or run `uninstall.bat`.
+- **Windows:** run `install.bat` and answer **Y** to uninstall all, or run
+  `uninstall.bat`.
 - **Steam Deck / Linux:** run `./uninstall.sh`.
 
 The uninstall scripts restore the original executable and remove the mod's

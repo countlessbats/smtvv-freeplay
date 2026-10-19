@@ -84,7 +84,8 @@ import autosave  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.34"
+MOD_VERSION = "5.7.35"
+FEATURES_FILE = "Freeplay.features"   # installed features, kept next to the executable
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -837,6 +838,19 @@ def main() -> None:
     print(f"  Writing patched -> {os.path.basename(out_path)}")
     with open(out_path, "wb") as fh:
         fh.write(data)
+
+    # Feature record for the installer; it becomes FEATURES_FILE once the
+    # patched executable is in place.
+    features = {"essences": do_essences, "heal": do_heal, "mimans": do_mimans,
+                "miracles": do_miracles, "compendium": do_compendium, "jump": do_jump,
+                "shop": do_shop, "magatsuhi": do_magatsuhi, "intro": do_intro,
+                "masakado": do_masakado, "newborn": do_newborn}
+    lines = [f"{k}={int(v)}" for k, v in features.items()]
+    lines.append("itemhacks=" + ("stockpile" if do_stockpile else "refill" if do_refill else "none"))
+    lines.append(f"autosave={autosave_slot or 0}")
+    with open(os.path.join(os.path.dirname(out_path), FEATURES_FILE + ".new"), "w",
+              newline="\r\n") as fh:
+        fh.write("\n".join(lines) + "\n")
 
     print()
     print("  " + "-" * 58)

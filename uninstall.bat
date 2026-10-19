@@ -40,6 +40,7 @@ if not exist "%BINDIR%\%EXE%.original" (
 :found
 echo  Restoring original executable...
 copy /Y "%BINDIR%\%EXE%.original" "%BINDIR%\%EXE%" >nul
+del /Q "%BINDIR%\Freeplay.features" "%BINDIR%\Freeplay.features.new" >nul 2>nul
 
 for %%I in ("%BINDIR%\..\..\..") do set "GAMEDIR=%%~fI"
 if exist "%GAMEDIR%\Project\Content\Paks\pakchunk99_NGPlusMiracles_P.pak" (

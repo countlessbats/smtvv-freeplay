@@ -91,6 +91,9 @@ if [ -f "$BIN/$EXE.patched" ]; then
     echo "Installing patched executable..."
     cp -f "$BIN/$EXE.patched" "$BIN/$EXE"
 fi
+if [ -f "$BIN/Freeplay.features.new" ]; then
+    mv -f "$BIN/Freeplay.features.new" "$BIN/Freeplay.features"
+fi
 
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then

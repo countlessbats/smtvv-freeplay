@@ -36,6 +36,7 @@ BIN="$GAMEDIR/Project/Binaries/Win64"
 if [ -f "$BIN/$EXE.original" ]; then
     echo "Restoring original executable..."
     cp -f "$BIN/$EXE.original" "$BIN/$EXE"
+    rm -f "$BIN/Freeplay.features" "$BIN/Freeplay.features.new"
 else
     echo "No backup found. Use Steam -> Properties -> Installed Files ->"
     echo "Verify integrity of game files to restore the executable."

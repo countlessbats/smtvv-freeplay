@@ -1,76 +1,12 @@
 @echo off
 setlocal EnableDelayedExpansion
+:: Optional argument: the SMT5V folder (skips the automatic search).
+set "ARGDIR=%~1"
 
 echo.
 echo  ============================================================
 echo   SMT5V: Vengeance - Freeplay Mod Installer
 echo  ============================================================
-echo.
-echo   Select which patches to install:
-echo.
-echo     [1] All patches
-echo     [2] Choose individually
-echo     [3] Uninstall (restore original)
-echo.
-set /p CHOICE="  Your choice (1/2/3): "
-
-if "%CHOICE%"=="3" goto :uninstall
-if "%CHOICE%"=="2" goto :individual
-
-:: Default: all patches
-set "FLAGS="
-goto :run_patcher
-
-:individual
-echo.
-echo   For each patch, enter Y or N:
-echo.
-set /p P1="   Reusable Essences (essences not consumed)? [Y/n]: "
-set /p P2="   Leyline Auto-Heal (full HP/MP on leyline use)? [Y/n]: "
-set /p P3="   Miman Reveal (all miman positions shown on map)? [Y/n]: "
-set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
-set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
-echo    Item Hacks: [R] Battle Refill (battle items topped up at every battle start)
-echo                [S] Stockpile (stack battle items to 99; normal limit per battle)
-echo                [N] Neither
-set /p P6="   Item Hacks? [R/s/n]: "
-set /p P7="   Superjump (hold jump to rise, faster air control)? [Y/n]: "
-set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)? [Y/n]: "
-set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
-set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
-set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
-set /p P13="   Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)? [Y/n]: "
-:ask_autosave
-set "P14="
-set /p P14="   Autosave after every battle into save slot (1-20, blank = off): "
-if not defined P14 goto :autosave_done
-set "SLOTOK="
-for /l %%N in (1,1,20) do if "!P14!"=="%%N" set "SLOTOK=1"
-if not defined SLOTOK (
-    echo    Please enter a slot number from 1 to 20, or leave it blank.
-    goto :ask_autosave
-)
-echo    Note: slot !P14! will be overwritten after every battle.
-:autosave_done
-
-set "FLAGS="
-if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
-if /i "%P2%"=="n" set "FLAGS=!FLAGS! --no-heal"
-if /i "%P3%"=="n" set "FLAGS=!FLAGS! --no-mimans"
-if /i "%P4%"=="n" set "FLAGS=!FLAGS! --no-miracles"
-if /i "%P5%"=="n" set "FLAGS=!FLAGS! --no-compendium"
-if /i "%P6%"=="n" set "FLAGS=!FLAGS! --no-refill"
-if /i "%P6%"=="s" set "FLAGS=!FLAGS! --stockpile"
-if /i "%P7%"=="n" set "FLAGS=!FLAGS! --no-jump"
-if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
-if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
-if /i "%P10%"=="n" set "FLAGS=!FLAGS! --no-intro"
-if /i "%P11%"=="n" set "FLAGS=!FLAGS! --no-masakado"
-if /i "%P13%"=="n" set "FLAGS=!FLAGS! --no-newborn"
-if defined P14 set "FLAGS=!FLAGS! --autosave-slot !P14!"
-goto :run_patcher
-
-:run_patcher
 
 :: --- Locate Python ---
 set "PYTHON=%~dp0python\python.exe"
@@ -98,6 +34,189 @@ if not defined BINDIR (
 :: Clean game root (for the patcher's --game-dir), derived from BINDIR
 for %%I in ("!BINDIR!\..\..\..") do set "GAMEDIR=%%~fI"
 
+:: --- What is installed now ---
+set "BOOL_KEYS=essences heal mimans miracles compendium jump shop magatsuhi intro masakado newborn"
+set "STATE=!BINDIR!\Freeplay.features"
+for %%K in (%BOOL_KEYS%) do set "INST_%%K="
+set "INST_itemhacks="
+set "INST_autosave="
+if exist "!STATE!" (
+    for /f "usebackq tokens=1,2 delims==" %%A in ("!STATE!") do (
+        for %%K in (%BOOL_KEYS%) do if /i "%%A"=="%%K" if "%%B"=="1" set "INST_%%K=1"
+        if /i "%%A"=="itemhacks" if /i "%%B"=="refill" set "INST_itemhacks=refill"
+        if /i "%%A"=="itemhacks" if /i "%%B"=="stockpile" set "INST_itemhacks=stockpile"
+        if /i "%%A"=="autosave" for /l %%N in (1,1,20) do if "%%B"=="%%N" set "INST_autosave=%%N"
+    )
+)
+set /a NINST=0
+for %%K in (%BOOL_KEYS%) do if defined INST_%%K set /a NINST+=1
+if defined INST_itemhacks set /a NINST+=1
+if defined INST_autosave set /a NINST+=1
+set /a NALL=13
+
+:: An install that predates the feature record: the executable differs from
+:: the backup, or a Freeplay data pak is present.
+set "LEGACY="
+if not exist "!STATE!" (
+    if exist "!BINDIR!\%EXE%.original" (
+        call :sha256 "!BINDIR!\%EXE%" H1
+        call :sha256 "!BINDIR!\%EXE%.original" H2
+        if not "!H1!"=="!H2!" set "LEGACY=1"
+    )
+    for %%P in (93_FreeplayStockpile 94_FreeplayNewborn 95_FreeplayMap 96_FreeplayQuest 97_FreeplayBoot 98_FreeplayShop 99_NGPlusMiracles) do (
+        if exist "!GAMEDIR!\Project\Content\Paks\pakchunk%%P_P.pak" set "LEGACY=1"
+    )
+)
+
+echo.
+if !NINST! geq !NALL! goto :all_installed
+if !NINST! gtr 0 goto :some_installed
+if defined LEGACY goto :legacy_installed
+echo   No mods from this pack are installed. Choose the ones you want:
+goto :choose
+
+:all_installed
+echo   All mods in this pack are currently installed.
+set "A="
+set /p "A=  Uninstall all? Choose N to list each for individual uninstall. [y/n]: "
+if /i "!A!"=="y" goto :uninstall
+if /i "!A!"=="n" goto :choose
+goto :all_installed
+
+:some_installed
+echo   Some mods from this pack are installed ^(marked [installed] below^).
+set "A="
+set /p "A=  Uninstall all of them first? [y/N]: "
+if /i "!A!"=="y" goto :uninstall
+if not defined A goto :choose
+if /i "!A!"=="n" goto :choose
+goto :some_installed
+
+:legacy_installed
+echo   An earlier version of this pack is installed. It did not record which
+echo   mods it installed.
+set "A="
+set /p "A=  Uninstall it? Choose N to choose mods now. [y/N]: "
+if /i "!A!"=="y" goto :uninstall
+if not defined A goto :choose
+if /i "!A!"=="n" goto :choose
+goto :legacy_installed
+
+:: --- One question per mod ---
+:choose
+echo.
+call :ask essences "Reusable Essences (essences not consumed)"
+call :ask heal "Leyline Auto-Heal (full HP/MP on leyline use)"
+call :ask mimans "Miman Reveal (all miman positions shown on map)"
+call :ask miracles "NG+ Miracles (unlock NG+ miracles early)"
+call :ask compendium "Free Compendium (compendium summons cost nothing)"
+call :ask_items
+call :ask jump "Superjump (hold jump to rise, faster air control)"
+call :ask shop "Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)"
+call :ask magatsuhi "Full Magatsuhi (gauge full at the start of every battle)"
+call :ask intro "Skip Intro (no logos or opening movie; boot to title menu)"
+call :ask masakado "Masakado Unlock (powered-up Masakado fight without the Kiou Sword)"
+call :ask newborn "Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)"
+call :ask_autosave
+
+set "FLAGS="
+set /a NSEL=0
+for %%K in (%BOOL_KEYS%) do (
+    if defined SEL_%%K (
+        set /a NSEL+=1
+    ) else (
+        set "FLAGS=!FLAGS! --no-%%K"
+    )
+)
+if /i "!SEL_itemhacks!"=="refill" set /a NSEL+=1
+if /i "!SEL_itemhacks!"=="stockpile" (
+    set /a NSEL+=1
+    set "FLAGS=!FLAGS! --stockpile"
+)
+if /i "!SEL_itemhacks!"=="none" set "FLAGS=!FLAGS! --no-refill"
+if defined SEL_autosave (
+    set /a NSEL+=1
+    set "FLAGS=!FLAGS! --autosave-slot !SEL_autosave!"
+)
+if !NSEL! equ 0 (
+    echo.
+    echo   No mods chosen.
+    if !NINST! gtr 0 goto :uninstall
+    if defined LEGACY goto :uninstall
+    pause
+    exit /b 0
+)
+goto :run_patcher
+
+:: call :sha256 "<file>" <var> -- sets <var> to the file's SHA-256
+:sha256
+set "%~2="
+for /f "skip=1 delims=" %%H in ('%SystemRoot%\System32\certutil.exe -hashfile "%~1" SHA256') do (
+    if not defined %~2 set "%~2=%%H"
+)
+exit /b 0
+
+:: call :ask <key> "<description>" -- sets SEL_<key>=1 to install or keep it
+:ask
+set "K=%~1"
+set "D=%~2"
+set "SEL_%K%="
+set "Q=   !D! - install? [y/N]: "
+set "DEF=n"
+if defined INST_%K% set "Q=   !D! [installed] - keep? [Y/n]: "
+if defined INST_%K% set "DEF=y"
+:ask_again
+set "A="
+set /p "A=!Q!"
+if not defined A set "A=!DEF!"
+if /i "!A!"=="y" (
+    set "SEL_%K%=1"
+    exit /b 0
+)
+if /i "!A!"=="n" exit /b 0
+goto :ask_again
+
+:ask_items
+echo    Item Hacks: [R] Battle Refill (battle items topped up at every battle start)
+echo                [S] Stockpile (stack battle items to 99; normal limit per battle)
+echo                [N] Neither
+set "SEL_itemhacks="
+set "Q=   Item Hacks? [r/s/N]: "
+set "DEF=n"
+if /i "!INST_itemhacks!"=="refill" set "Q=   Item Hacks [installed: Battle Refill] - keep? [R/s/n]: "
+if /i "!INST_itemhacks!"=="refill" set "DEF=r"
+if /i "!INST_itemhacks!"=="stockpile" set "Q=   Item Hacks [installed: Stockpile] - keep? [r/S/n]: "
+if /i "!INST_itemhacks!"=="stockpile" set "DEF=s"
+:ask_items_again
+set "A="
+set /p "A=!Q!"
+if not defined A set "A=!DEF!"
+if /i "!A!"=="r" set "SEL_itemhacks=refill"
+if /i "!A!"=="s" set "SEL_itemhacks=stockpile"
+if /i "!A!"=="n" set "SEL_itemhacks=none"
+if not defined SEL_itemhacks goto :ask_items_again
+exit /b 0
+
+:ask_autosave
+echo    Autosave After Battle: saves to one slot after every battle,
+echo                           overwriting that slot each time.
+set "SEL_autosave="
+set "Q=   Autosave After Battle - install? Enter a save slot (1-20), or blank to skip: "
+if defined INST_autosave set "Q=   Autosave After Battle [installed: slot !INST_autosave!] - keep? Enter for slot !INST_autosave!, another slot (1-20), or N to remove: "
+:ask_autosave_again
+set "A="
+set /p "A=!Q!"
+if not defined A (
+    if defined INST_autosave set "SEL_autosave=!INST_autosave!"
+    exit /b 0
+)
+if /i "!A!"=="n" exit /b 0
+for /l %%N in (1,1,20) do if "!A!"=="%%N" set "SEL_autosave=%%N"
+if defined SEL_autosave exit /b 0
+echo    Please enter a slot number from 1 to 20.
+goto :ask_autosave_again
+
+:run_patcher
 echo.
 "%PYTHON%" "%~dp0patch_smtvv_freeplay.py" --game-dir "%GAMEDIR%" %FLAGS%
 if errorlevel 1 (
@@ -116,15 +235,15 @@ if exist "%BINDIR%\%EXE%.patched" (
     echo  Installing patched executable...
     copy /Y "%BINDIR%\%EXE%.patched" "%BINDIR%\%EXE%" >nul
 )
+if exist "%BINDIR%\Freeplay.features.new" move /Y "%BINDIR%\Freeplay.features.new" "%BINDIR%\Freeplay.features" >nul
 
 call :remove_legacy_superjump
 
 echo.
 echo  ============================================================
-echo   DONE!  Mod installed successfully.
+echo   Done - mods installed.
 echo.
-echo   To uninstall: run this script again and choose option 3,
-echo   or use Steam ^> Verify Integrity of Game Files.
+echo   To change or remove mods, run this installer again.
 echo  ============================================================
 echo.
 pause
@@ -132,7 +251,7 @@ exit /b 0
 
 :uninstall
 set "EXE=SMT5V-Win64-Shipping.exe"
-call :locate
+if not defined BINDIR call :locate
 if not defined BINDIR (
     echo.
     echo  Cancelled -- no game folder provided.
@@ -142,7 +261,7 @@ if not defined BINDIR (
 if exist "!BINDIR!\%EXE%.original" (
     echo  Restoring original executable...
     copy /Y "!BINDIR!\%EXE%.original" "!BINDIR!\%EXE%" >nul
-    echo  Done! Original executable restored.
+    echo  Done - original executable restored.
 ) else (
     echo  No backup found. Use Steam ^> Verify Integrity instead.
 )
@@ -178,6 +297,7 @@ if exist "!GAMEDIR!\Project\Content\Paks\pakchunk93_FreeplayStockpile_P.pak" (
 if exist "!BINDIR!\xinput1_3.dll" (
     call :remove_legacy_superjump
 )
+del /Q "!BINDIR!\Freeplay.features" "!BINDIR!\Freeplay.features.new" >nul 2>nul
 echo.
 pause
 exit /b 0
@@ -204,6 +324,11 @@ exit /b 0
 :: ==========================================================================
 :locate
 set "BINDIR="
+if defined ARGDIR (
+    set "USERPATH=!ARGDIR!"
+    set "ARGDIR="
+    goto :locate_check
+)
 for %%D in (C D E F G H) do (
     for %%P in (
         "%%D:\SteamLibrary\steamapps\common\SMT5V"
@@ -233,6 +358,7 @@ echo.
 set "USERPATH="
 set /p "USERPATH=  SMT5V folder (or blank to cancel): "
 if not defined USERPATH exit /b 1
+:locate_check
 set USERPATH=%USERPATH:"=%
 if /i "!USERPATH:~-4!"==".exe" for %%I in ("!USERPATH!") do set "USERPATH=%%~dpI"
 if "!USERPATH:~-1!"=="\" set "USERPATH=!USERPATH:~0,-1!"

@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.34**
+**Current version: 5.7.35**
 
 ## Features
 
@@ -55,8 +55,7 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 13. **Autosave After Battle** (off unless chosen) - after every battle, once
     you are back on the field, the game saves to a save slot you pick at
     install time (1-20). That slot is overwritten after each battle, so pick
-    one you don't use for anything else. Only offered when choosing patches
-    individually.
+    one you don't use for anything else.
 
 ## Requirements
 
@@ -81,11 +80,15 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 2. Double-click `install.bat`.
 
-3. Choose all patches, or pick individual ones (Reusable Essences,
-   Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Item Hacks (Battle Refill or Stockpile), Superjump, Free Growth Items, Full Magatsuhi,
-   Skip Intro, Masakado Unlock, Newborn Clears Compendium, Autosave After
-   Battle).
+3. Answer one question per mod (Reusable Essences, Leyline Auto-Heal, Miman
+   Reveal, NG+ Miracles, Free Compendium, Item Hacks (Battle Refill or
+   Stockpile), Superjump, Free Growth Items, Full Magatsuhi, Skip Intro,
+   Masakado Unlock, Newborn Clears Compendium, Autosave After Battle). Press
+   Enter to skip a mod.
+
+   Run `install.bat` again later to add or remove mods: it shows which ones
+   are installed, offers to uninstall all of them first, and otherwise asks
+   about each mod again (Enter keeps an installed mod).
 
 The installer backs up the original executable as:
 
@@ -179,7 +182,7 @@ New work should use `patch_smtvv_freeplay.py`.
 ## Uninstall
 
 Run `uninstall.bat` (Windows) or `./uninstall.sh` (Linux), or run `install.bat`
-and choose uninstall. This restores the original executable and removes the
+and answer Y to uninstall all. This restores the original executable and removes the
 NG+ miracle data pak.
 
 You can also restore the executable through Steam:
