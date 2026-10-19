@@ -175,7 +175,7 @@ def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None
         return None
 
     # Chains onto whatever the thunk currently jumps to (the Battle Refill
-    # or Deep Stock cave when that patch is installed).
+    # or Stockpile cave when that patch is installed).
     for t in SETNEXTSTEP_THUNKS:
         prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
         a = Asm(va(cave_off))

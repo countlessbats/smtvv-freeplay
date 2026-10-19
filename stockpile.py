@@ -1,5 +1,5 @@
 """
-Deep Stock: battle items can be stockpiled up to 99 outside battle, while
+Stockpile: battle items can be stockpiled up to 99 outside battle, while
 each battle still allows only the game's normal carry limit of each item
 (e.g. 5 Somas).
 
@@ -28,7 +28,7 @@ from gameplay_patches import (Asm, BTL_NEXTSTEP_OFF, BTL_STEP_END_EVENT, BTL_STE
                               SETNEXTSTEP_THUNKS, _jmp_site, _place, va, off)
 from shop_pak import ITEM_ID_OFF, ITEM_ROW, ITEM_TABLE, _section
 
-STOCK_PAK = "pakchunk93_FreeplayStock_P.pak"
+STOCK_PAK = "pakchunk93_FreeplayStockpile_P.pak"
 ITEM_LIST = "Project/Content/Blueprints/UI/Camp/Item/WB_CampItemList"
 IMPORT_SIZE = 28
 
@@ -65,25 +65,23 @@ def _file_off(data: bytes, v: int) -> int:
     raise RuntimeError(f"address {v:#x} not in any section")
 
 
-def edit_item_max(uexp: bytes) -> tuple[bytes, dict[int, int]]:
-    """Raise the limits; returns the edited table and {item: original limit}."""
-    data = bytearray(uexp)
-    _, base, size = _section(data, 0)
-    orig = {}
+def battle_item_limits(uexp: bytes) -> dict[int, int]:
+    """{item: carry limit} for every battle item with a limit below STOCK_MAX."""
+    _, base, size = _section(bytearray(uexp), 0)
+    limits = {}
     for item in range(1, ID_MAX + 1):
         row = base + (item - 1) * ITEM_ROW
-        if row + ITEM_ROW > base + size or struct.unpack_from("<i", data, row + ITEM_ID_OFF)[0] != item:
+        if row + ITEM_ROW > base + size or struct.unpack_from("<i", uexp, row + ITEM_ID_OFF)[0] != item:
             raise RuntimeError(f"ItemTable row for item {item} not found - game update?")
-        limit = data[row + ITEM_MAX_OFF]
-        if data[row + ITEM_BATTLE_OFF] and 0 < limit < STOCK_MAX:
-            orig[item] = limit
-            data[row + ITEM_MAX_OFF] = STOCK_MAX
-    if not orig:
+        limit = uexp[row + ITEM_MAX_OFF]
+        if uexp[row + ITEM_BATTLE_OFF] and 0 < limit < STOCK_MAX:
+            limits[item] = limit
+    if not limits:
         raise RuntimeError("no battle items found in ItemTable - game update?")
-    return bytes(data), orig
+    return limits
 
 
-def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
+def patch_stockpile(data: bytearray, cave_off: int, cave_end: int,
                      orig: dict[int, int], side: list[list[int]]) -> int | None:
     """Main code goes in the shared cave; the ItemGetMaxNum hooks go in the
     smaller caves listed in side ([start, end] pairs, used up in place)."""

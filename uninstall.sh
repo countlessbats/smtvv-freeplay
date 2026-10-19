@@ -77,9 +77,9 @@ if [ -f "$NEWBORN_PAK" ]; then
     rm -f "$NEWBORN_PAK"
 fi
 
-STOCK_PAK="$GAMEDIR/Project/Content/Paks/pakchunk93_FreeplayStock_P.pak"
+STOCK_PAK="$GAMEDIR/Project/Content/Paks/pakchunk93_FreeplayStockpile_P.pak"
 if [ -f "$STOCK_PAK" ]; then
-    echo "Removing Deep Stock data pak..."
+    echo "Removing Stockpile data pak..."
     rm -f "$STOCK_PAK"
 fi
 

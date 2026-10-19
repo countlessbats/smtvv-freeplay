@@ -115,11 +115,8 @@ def edit_shop_table(uasset: bytes, uexp: bytes) -> tuple[bytes, bytes]:
 
 
 def build_shop_pak(game_dir: str, paks_subpath: str, source_pak: str,
-                   repak: str, run_repak, deep_stock: bool = False) -> None:
-    """Build SHOP_PAK in the game's Paks folder. Raises RuntimeError.
-
-    With deep_stock the ItemTable in this pak also carries the Deep Stock
-    carry limits, since only one pak can override the table."""
+                   repak: str, run_repak) -> None:
+    """Build SHOP_PAK in the game's Paks folder. Raises RuntimeError."""
     import shutil
     import tempfile
 
@@ -134,9 +131,6 @@ def build_shop_pak(game_dir: str, paks_subpath: str, source_pak: str,
     item_asset, item_exp = get(ITEM_TABLE + ".uasset"), get(ITEM_TABLE + ".uexp")
     shop_asset, shop_exp = get(SHOP_TABLE + ".uasset"), get(SHOP_TABLE + ".uexp")
     item_exp = edit_item_table(item_exp)
-    if deep_stock:
-        import stock
-        item_exp = stock.edit_item_max(item_exp)[0]
     files = {
         ITEM_TABLE + ".uasset": item_asset,
         ITEM_TABLE + ".uexp": item_exp,

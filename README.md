@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.31**
+**Current version: 5.7.32**
 
 ## Features
 
@@ -25,7 +25,7 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 6. **Item Hacks** - choose one:
    - **Battle Refill** - at the start of every battle, each battle-usable item
      you have ever obtained is topped back up to its carry limit.
-   - **Deep Stock** - battle items stack to 99, but each battle still lets you
+   - **Stockpile** - battle items stack to 99, but each battle still lets you
      use only the normal carry limit of each (for example 5 Somas). Menus show
      the normal limit as the maximum, so extra stock shows as overflow (for
      example 11/10). Items used in battle come out of your stock.
@@ -77,7 +77,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Item Hacks (Battle Refill or Deep Stock), Superjump, Free Growth Items, Full Magatsuhi,
+   Item Hacks (Battle Refill or Stockpile), Superjump, Free Growth Items, Full Magatsuhi,
    Skip Intro, Masakado Unlock, Newborn Clears Compendium).
 
 The installer backs up the original executable as:
@@ -106,7 +106,7 @@ chmod +x install.sh
 ```
 
 With no switches, it installs all twelve features, with Battle Refill as the
-Item Hack; add `--deep-stock` to get Deep Stock instead. To install only some of
+Item Hack; add `--stockpile` to get Stockpile instead. To install only some of
 them, add a skip-switch for each feature you do **not** want:
 
 ```text
@@ -263,7 +263,7 @@ English carry-over lists: Newborn no longer lists the Demon Compendium and state
 that it is not carried over, and Reborn, whose list builds on Newborn's, lists it. Other
 languages show the original lists. The uninstallers remove the pak.
 
-### Deep Stock
+### Stockpile
 
 Item tables are left as they are. The item menus show each item's normal
 carry limit, while the game's own carry checks are told 99 for every

@@ -23,7 +23,7 @@ Applies quality-of-life patches to the game executable and optional data paks:
   6. Item Hacks  -- one of:
      Battle Refill: at the start of every battle, each battle-usable item
      the player has ever obtained is topped up to its carry limit.
-     Deep Stock: battle items stack to 99, but each battle allows only the
+     Stockpile: battle items stack to 99, but each battle allows only the
      normal carry limit of each (data pak built from the player's game
      files).
 
@@ -74,13 +74,13 @@ import shop_pak  # noqa: E402
 import boot_pak  # noqa: E402
 import quest_pak  # noqa: E402
 import newborn  # noqa: E402
-import stock  # noqa: E402
+import stockpile  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.31"
+MOD_VERSION = "5.7.32"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -340,8 +340,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
-    parser.add_argument("--deep-stock", action="store_true",
-                        help="Install Deep Stock instead of Battle Refill")
+    parser.add_argument("--stockpile", action="store_true",
+                        help="Install Stockpile instead of Battle Refill")
     parser.add_argument("--no-masakado", action="store_true",
                         help="Skip the Masakado Unlock patch")
     parser.add_argument("--no-intro", action="store_true",
@@ -363,8 +363,8 @@ def main() -> None:
     do_mimans   = not args.no_mimans
     do_miracles = not args.no_miracles
     do_compendium = not args.no_compendium
-    do_deep = args.deep_stock
-    do_refill = not args.no_refill and not do_deep
+    do_stockpile = args.stockpile
+    do_refill = not args.no_refill and not do_stockpile
     do_jump = not args.no_jump
     do_magatsuhi = not args.no_magatsuhi
     do_intro = not args.no_intro
@@ -396,7 +396,7 @@ def main() -> None:
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
     for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK,
-                LEGACY_MAP_PAK, newborn.NEWBORN_PAK, stock.STOCK_PAK):
+                LEGACY_MAP_PAK, newborn.NEWBORN_PAK, stockpile.STOCK_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -432,7 +432,7 @@ def main() -> None:
                                 ("Miracles", do_miracles),
                                 ("Compendium", do_compendium),
                                 ("Refill", do_refill),
-                                ("DeepStock", do_deep),
+                                ("Stockpile", do_stockpile),
                                 ("Jump", do_jump),
                                 ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop),
@@ -660,42 +660,42 @@ def main() -> None:
     # ==================================================================
     cave_end = cave_off + cave_len
     # ==================================================================
-    # PATCH: Deep Stock (exe; reads the ItemTable carry limits)
+    # PATCH: Stockpile (exe + item list pak; reads the ItemTable carry limits)
     # ==================================================================
-    deep_ok = False
-    if do_deep:
+    stockpile_ok = False
+    if do_stockpile:
         repak = find_repak()
         try:
             if repak is None:
                 raise RuntimeError("bundled repak tool not found")
-            item_asset, item_exp = stock.read_item_table(game_dir, PAKS_SUBPATH, SOURCE_PAK,
+            item_asset, item_exp = stockpile.read_item_table(game_dir, PAKS_SUBPATH, SOURCE_PAK,
                                                          repak, run_repak)
-            deep_orig = stock.edit_item_max(item_exp)[1]
+            limits = stockpile.battle_item_limits(item_exp)
             start = next_cave_off
             side = find_cc_caves(data, min_size=96, count=3, exclude=(cave_off, cave_end))
             if not side:
                 raise RuntimeError("no second code cave")
             trial = bytearray(data)       # applied only if the whole patch fits
-            result = stock.patch_deep_stock(trial, next_cave_off, cave_end, deep_orig,
+            result = stockpile.patch_stockpile(trial, next_cave_off, cave_end, limits,
                                             [[o, o + n] for o, n in side])
             if result is None:
                 raise RuntimeError("AOB mismatch")
             data[:] = trial
             del trial
             next_cave_off = result
-            deep_ok = True
+            stockpile_ok = True
             patch_num += 1
-            print(f"\n  [{patch_num}/{total}] Deep Stock")
+            print(f"\n  [{patch_num}/{total}] Stockpile")
             print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
-            print(f"    Battle items  : {len(deep_orig)} can be stocked to {stock.STOCK_MAX}")
+            print(f"    Battle items  : {len(limits)} can be stocked to {stockpile.STOCK_MAX}")
         except RuntimeError as exc:
-            print(f"\n  WARNING: Deep Stock skipped - {exc}")
-        if deep_ok:
+            print(f"\n  WARNING: Stockpile skipped - {exc}")
+        if stockpile_ok:
             try:
-                stock.build_stock_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
-                print(f"    Data pak      : {stock.STOCK_PAK}")
+                stockpile.build_stock_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
+                print(f"    Data pak      : {stockpile.STOCK_PAK}")
             except RuntimeError as exc:
-                print(f"    WARNING: Deep Stock data pak not built - {exc}")
+                print(f"    WARNING: Stockpile data pak not built - {exc}")
 
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
                                (do_jump, "Superjump", gameplay_patches.patch_jump),
