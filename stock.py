@@ -37,9 +37,25 @@ STOCK_ACTIVE = 0x1549A9900   # spare zeroed bytes in a writable section page
 STOCK_LAST_ID = 0x1549A9908  # item ID of the latest ItemGetMaxNum call
 STOCK_HIDDEN = 0x1549A9910   # u8 per item ID, 0..ID_MAX
 # Blueprint exec thunk of ItemGetMaxNum (a 5-byte jump into the protected
-# body). The other registered copy (0x140CCA910) must stay untouched:
-# redirecting it makes the game exit during startup.
+# body), hooked in place.
 MAX_THUNKS = [0x140CCBA60]
+# The other registered copy (0x140CCA910) must keep its code bytes (patching
+# them makes the game exit during startup), so its entry in the native
+# function table is pointed at the hook instead: (table slot, thunk).
+MAX_SLOTS = [(0x143279EB0, 0x140CCA910)]
+
+
+def _file_off(data: bytes, v: int) -> int:
+    """File offset of VA v, from the section table."""
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    count = struct.unpack_from("<H", data, pe + 6)[0]
+    sec = pe + 24 + struct.unpack_from("<H", data, pe + 20)[0]
+    rva = v - 0x140000000
+    for i in range(count):
+        vsize, vaddr, rsize, raw = struct.unpack_from("<4I", data, sec + i * 40 + 8)
+        if vaddr <= rva < vaddr + max(vsize, rsize):
+            return raw + rva - vaddr
+    raise RuntimeError(f"address {v:#x} not in any section")
 
 
 def edit_item_max(uexp: bytes) -> tuple[bytes, dict[int, int]]:
@@ -66,6 +82,9 @@ def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
     second, smaller cave (side_off..side_end)."""
     for t in SETNEXTSTEP_THUNKS + MAX_THUNKS + [ITEM_GET_NUM, ITEM_GET_MAX]:
         if data[off(t)] != 0xE9:
+            return None
+    for slot, thunk in MAX_SLOTS:
+        if struct.unpack_from("<Q", data, _file_off(data, slot))[0] != thunk:
             return None
     num_orig = ITEM_GET_NUM + 5 + struct.unpack_from("<i", data, off(ITEM_GET_NUM) + 1)[0]
     limits = bytes(orig.get(i, 0) for i in range(ID_MAX + 1))
@@ -135,22 +154,31 @@ def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
     _jmp_site(data, ITEM_GET_MAX, dest, 5)
 
     # Blueprint ItemGetMaxNum: report the item's original limit.
-    for t in MAX_THUNKS:
-        prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+    for t in MAX_THUNKS + [slot for slot, _ in MAX_SLOTS]:
+        if t in MAX_THUNKS:
+            prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+        else:
+            prev = struct.unpack_from("<Q", data, _file_off(data, t))[0]
         a = Asm(va(side_off))
+        # rax is passed through untouched: the game also calls this entry
+        # outside Blueprint and uses what it returns.
         a.raw("53 48 83 EC 20 4C 89 C3")          # push rbx; sub rsp,20h; mov rbx,r8 (result)
-        a.raw("B8 FF FF FF FF")._rel("89 05", STOCK_LAST_ID)
+        a.raw("B9 FF FF FF FF")._rel("89 0D", STOCK_LAST_ID)
         a.call(prev)
-        a._rel("8B 05", STOCK_LAST_ID)            # mov eax, [last]
-        a.raw("3D" + u32(ID_MAX)).ja("done")
-        a._rel("48 8D 0D", limits_va)
-        a.raw("0F B6 0C 01 85 C9").je("done")    # movzx ecx,[rcx+rax]; test ecx,ecx
-        a.raw("89 0B")                            # mov [rbx], ecx
+        a._rel("8B 0D", STOCK_LAST_ID)            # mov ecx, [last]
+        a.raw("81 F9" + u32(ID_MAX)).ja("done")
+        a._rel("48 8D 15", limits_va)
+        a.raw("0F B6 14 0A 85 D2").je("done")    # movzx edx,[rdx+rcx]; test edx,edx
+        a.raw("48 85 DB").je("done")              # no result slot
+        a.raw("88 13")                            # mov [rbx], dl (the low byte of any int width)
         a.label("done")
         a.raw("48 83 C4 20 5B C3")
         dest = va(side_off)
         side_off = _place(data, side_off, side_end, a.build())
-        _jmp_site(data, t, dest, 5)
+        if t in MAX_THUNKS:
+            _jmp_site(data, t, dest, 5)
+        else:
+            struct.pack_into("<Q", data, _file_off(data, t), dest)
     return cave_off
 
 
