@@ -64,6 +64,7 @@ import argparse
 import os
 import platform
 import shutil
+import re
 import struct
 import sys
 
@@ -79,7 +80,7 @@ import stock  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.26"
+MOD_VERSION = "5.7.27"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -177,6 +178,20 @@ def find_cc_cave(data: bytes | bytearray, min_size: int = 32,
         else:
             i += 1
     return best
+
+
+def find_cc_caves(data: bytes | bytearray, min_size: int, count: int,
+                  exclude: tuple[int, int] | None = None) -> list[tuple[int, int]]:
+    """Up to count CC-padded regions in .rdata of at least min_size bytes,
+    largest first, ignoring the region exclude = (start, end)."""
+    rdata_end = RDATA_RAW + 0x03072A00
+    found = []
+    for m in re.finditer(b"\xCC{%d,}" % min_size, data[RDATA_RAW:rdata_end]):
+        i, j = RDATA_RAW + m.start(), RDATA_RAW + m.end()
+        if exclude is None or j <= exclude[0] or i >= exclude[1]:
+            found.append((i, j - i))
+    found.sort(key=lambda c: -c[1])
+    return found[:count]
 
 
 def locate_game_dir(hint: str | None = None) -> str | None:
@@ -645,10 +660,9 @@ def main() -> None:
     # ==================================================================
     cave_end = cave_off + cave_len
     # ==================================================================
-    # PATCH: Deep Stock (exe + ItemTable carry limits)
+    # PATCH: Deep Stock (exe; reads the ItemTable carry limits)
     # ==================================================================
     deep_ok = False
-    deep_table = None
     if do_deep:
         repak = find_repak()
         try:
@@ -656,22 +670,24 @@ def main() -> None:
                 raise RuntimeError("bundled repak tool not found")
             item_asset, item_exp = stock.read_item_table(game_dir, PAKS_SUBPATH, SOURCE_PAK,
                                                          repak, run_repak)
-            deep_exp, deep_orig = stock.edit_item_max(item_exp)
+            deep_orig = stock.edit_item_max(item_exp)[1]
             start = next_cave_off
-            side = find_cc_cave(data, min_size=128, exclude=(cave_off, cave_end))
-            if side is None:
+            side = find_cc_caves(data, min_size=96, count=3, exclude=(cave_off, cave_end))
+            if not side:
                 raise RuntimeError("no second code cave")
-            result = stock.patch_deep_stock(data, next_cave_off, cave_end, deep_orig,
-                                            side[0], side[0] + side[1])
+            trial = bytearray(data)       # applied only if the whole patch fits
+            result = stock.patch_deep_stock(trial, next_cave_off, cave_end, deep_orig,
+                                            [[o, o + n] for o, n in side])
             if result is None:
                 raise RuntimeError("AOB mismatch")
+            data[:] = trial
+            del trial
             next_cave_off = result
             deep_ok = True
-            deep_table = (item_asset, deep_exp)
             patch_num += 1
             print(f"\n  [{patch_num}/{total}] Deep Stock")
             print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
-            print(f"    Battle items  : {len(deep_orig)} raised to {stock.STOCK_MAX}")
+            print(f"    Battle items  : {len(deep_orig)} can be stocked to {stock.STOCK_MAX}")
         except RuntimeError as exc:
             print(f"\n  WARNING: Deep Stock skipped - {exc}")
 
@@ -700,18 +716,10 @@ def main() -> None:
         try:
             if repak is None:
                 raise RuntimeError("bundled repak tool not found")
-            shop_pak.build_shop_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak,
-                                    deep_stock=deep_ok)
+            shop_pak.build_shop_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
             print(f"    Data pak      : {shop_pak.SHOP_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: shop data pak not built - {exc}")
-
-    if deep_ok and not do_shop:
-        try:
-            stock.build_stock_pak(game_dir, PAKS_SUBPATH, *deep_table, find_repak(), run_repak)
-            print(f"    Deep Stock pak: {stock.STOCK_PAK}")
-        except RuntimeError as exc:
-            print(f"    WARNING: Deep Stock data pak not built - {exc}")
 
     # ==================================================================
     # PATCH: Skip Intro (data pak + title refocus)

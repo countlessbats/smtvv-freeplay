@@ -3,17 +3,18 @@ Deep Stock: battle items can be stockpiled up to 99 outside battle, while
 each battle still allows only the game's normal carry limit of each item
 (e.g. 5 Somas).
 
-Data: in ItemTable (section 0, 100-byte rows, row N-1 = item N) every
-battle-usable item (+61 nonzero) with a carry limit below 99 (+58) gets a
-limit of 99.
+The ItemTable keeps its limits (section 0, 100-byte rows, row N-1 = item N;
++58 carry limit, +61 nonzero when usable in battle), so menus show the
+normal limit and stock above it shows as e.g. 11/10. For every battle item
+with a limit below 99, the exe's ItemGetMaxNum reports 99 to the game's
+carry checks.
 
-Exe: when a battle enters E_BTL_STEP_PRE, the stock above each item's
-original limit is recorded as a hidden amount; until the battle reaches
+When a battle enters E_BTL_STEP_PRE, the stock above each item's normal
+limit is recorded as a hidden amount; until the battle reaches
 E_BTL_STEP_END_EVENT, ItemGetNum reports the real count minus that hidden
-amount (never below 0). Items used in battle come out of the real stock.
-In and out of battle, the menus' ItemGetMaxNum (the Blueprint call only,
-so the game's own carry checks still see 99) reports the original limit,
-so stock above it shows as e.g. 11/10.
+amount (never below 0), and the battle menus' ItemGetMaxNum (the Blueprint
+call) reports the normal limit. Items used in battle come out of the real
+stock.
 """
 
 from __future__ import annotations
@@ -77,9 +78,9 @@ def edit_item_max(uexp: bytes) -> tuple[bytes, dict[int, int]]:
 
 
 def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
-                     orig: dict[int, int], side_off: int, side_end: int) -> int | None:
-    """Main code goes in the shared cave; the ItemGetMaxNum hooks go in a
-    second, smaller cave (side_off..side_end)."""
+                     orig: dict[int, int], side: list[list[int]]) -> int | None:
+    """Main code goes in the shared cave; the ItemGetMaxNum hooks go in the
+    smaller caves listed in side ([start, end] pairs, used up in place)."""
     for t in SETNEXTSTEP_THUNKS + MAX_THUNKS + [ITEM_GET_NUM, ITEM_GET_MAX]:
         if data[off(t)] != 0xE9:
             return None
@@ -144,41 +145,58 @@ def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
         cave_off = _place(data, cave_off, cave_end, a.build())
         _jmp_site(data, t, dest, 5)
 
-    # ItemGetMaxNum body: remember which item was asked for.
+    # ItemGetMaxNum body: remember which item was asked for, and let the
+    # game's carry checks see the stock limit for items with a normal limit.
     max_orig = ITEM_GET_MAX + 5 + struct.unpack_from("<i", data, off(ITEM_GET_MAX) + 1)[0]
-    a = Asm(va(side_off))
-    a._rel("89 0D", STOCK_LAST_ID)                # mov [last], ecx
-    a.jmp(max_orig)
-    dest = va(side_off)
-    side_off = _place(data, side_off, side_end, a.build())
-    _jmp_site(data, ITEM_GET_MAX, dest, 5)
+    def side_put(build) -> int:
+        for c in side:
+            code = build(Asm(va(c[0]))).build()
+            if c[0] + len(code) <= c[1]:
+                dest = va(c[0])
+                c[0] = _place(data, c[0], c[1], code)
+                return dest
+        raise RuntimeError("code cave too small")
 
-    # Blueprint ItemGetMaxNum: report the item's original limit.
-    for t in MAX_THUNKS + [slot for slot, _ in MAX_SLOTS]:
-        if t in MAX_THUNKS:
-            prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
-        else:
-            prev = struct.unpack_from("<Q", data, _file_off(data, t))[0]
-        a = Asm(va(side_off))
-        # rax is passed through untouched: the game also calls this entry
-        # outside Blueprint and uses what it returns.
-        a.raw("53 48 83 EC 20 4C 89 C3")          # push rbx; sub rsp,20h; mov rbx,r8 (result)
-        a.raw("B9 FF FF FF FF")._rel("89 0D", STOCK_LAST_ID)
-        a.call(prev)
-        a._rel("8B 0D", STOCK_LAST_ID)            # mov ecx, [last]
-        a.raw("81 F9" + u32(ID_MAX)).ja("done")
+    def max_hook(a):
+        a._rel("89 0D", STOCK_LAST_ID)            # mov [last], ecx
+        a.raw("53 48 83 EC 20 89 CB")             # push rbx; sub rsp,20h; mov ebx,ecx
+        a.call(max_orig)
+        a.raw("81 FB" + u32(ID_MAX)).ja("keep")
         a._rel("48 8D 15", limits_va)
-        a.raw("0F B6 14 0A 85 D2").je("done")    # movzx edx,[rdx+rcx]; test edx,edx
-        a.raw("48 85 DB").je("done")              # no result slot
-        a.raw("88 13")                            # mov [rbx], dl (the low byte of any int width)
-        a.label("done")
+        a.raw("80 3C 1A 00").je("keep")           # cmp byte [rdx+rbx], 0
+        a.raw("B8" + u32(STOCK_MAX))
+        a.label("keep")
         a.raw("48 83 C4 20 5B C3")
-        dest = va(side_off)
-        side_off = _place(data, side_off, side_end, a.build())
-        if t in MAX_THUNKS:
-            _jmp_site(data, t, dest, 5)
-        else:
-            struct.pack_into("<Q", data, _file_off(data, t), dest)
+        return a
+
+    _jmp_site(data, ITEM_GET_MAX, side_put(max_hook), 5)
+
+    # Blueprint ItemGetMaxNum: in battle, report the item's normal limit.
+    def thunk_hook(prev):
+        def build(a):
+            # rax is passed through untouched: the game also calls this
+            # entry outside Blueprint and uses what it returns.
+            a.raw("53 48 83 EC 20 4C 89 C3")      # push rbx; sub rsp,20h; mov rbx,r8 (result)
+            a.raw("B9 FF FF FF FF")._rel("89 0D", STOCK_LAST_ID)
+            a.call(prev)
+            a._rel("8A 0D", STOCK_ACTIVE).raw("84 C9").je("done")   # battles only
+            a._rel("8B 0D", STOCK_LAST_ID)        # mov ecx, [last]
+            a.raw("81 F9" + u32(ID_MAX)).ja("done")
+            a._rel("48 8D 15", limits_va)
+            a.raw("0F B6 14 0A 85 D2").je("done")    # movzx edx,[rdx+rcx]; test edx,edx
+            a.raw("48 85 DB").je("done")          # no result slot
+            a.raw("88 13")                        # mov [rbx], dl (the low byte of any int width)
+            a.label("done")
+            a.raw("48 83 C4 20 5B C3")
+            return a
+        return build
+
+    for t in MAX_THUNKS:
+        prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+        _jmp_site(data, t, side_put(thunk_hook(prev)), 5)
+    for slot, _ in MAX_SLOTS:
+        prev = struct.unpack_from("<Q", data, _file_off(data, slot))[0]
+        struct.pack_into("<Q", data, _file_off(data, slot), side_put(thunk_hook(prev)))
     return cave_off
 
 

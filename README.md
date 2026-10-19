@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.26**
+**Current version: 5.7.27**
 
 ## Features
 
@@ -250,8 +250,8 @@ held. The uninstallers remove the pak.
 
 Uses the same `SetNextStep` hook as Battle Refill (below): as a battle steps
 through its opening steps (ready, pre-battle, encounter and start event, each
-run once before the first turn), the player's Magatsuhi gauge is set to its
-maximum through the game's own setter.
+run once before the first turn), the party's Magatsuhi gauge, which carries
+over between battles, is set to its maximum of 100.
 
 ### Newborn Clears Compendium
 
@@ -264,14 +264,13 @@ languages show the original lists. The uninstallers remove the pak.
 
 ### Deep Stock
 
-A small override pak built from your own `pakchunk0` raises the carry limit of
-every battle-usable item below 99 to 99 (with Free Growth Items, its ItemTable
-carries both changes). When a battle enters its first step, the stock above each
-item's original limit is set aside; until the battle ends, the item count the
-game reports is the real count minus that amount, so the battle offers at most
-the original limit. Using an item takes it from the real stock. The maximum the
-menus show is always the original limit; the game's own carry checks still use 99. The uninstallers
-remove the pak.
+Item tables are left as they are, so menus show each item's normal carry
+limit; the game's own carry checks are told 99 for every battle-usable item
+with a lower limit, so stock above the limit shows as overflow (for example
+11/10). When a battle enters its first step, the stock above each item's
+normal limit is set aside; until the battle ends, the item count the game
+reports is the real count minus that amount, so the battle offers at most the
+normal limit. Using an item takes it from the real stock.
 
 ### Battle Refill
 

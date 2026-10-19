@@ -154,22 +154,24 @@ def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
 # ---------------------------------------------------------------------------
 # Full Magatsuhi: fill the player's Magatsuhi gauge as each battle starts
 # ---------------------------------------------------------------------------
-MAG_SET          = 0x140ABD7B0   # SetPlayerMAGGauge(value), clamps to max
-MAG_SET_ORIG     = bytes.fromhex("48895c240848896c2410")
-MAG_GET_MAX      = 0x140AB4BA0   # GetPlayerMAGGaugeMax() -> int
-MAG_GET_MAX_ORIG = bytes.fromhex("40534883ec40")
+# The battle Magatsuhi gauge is the party's Uplifting gauge (PartyData
+# m_UpliftingGauge), kept in the save data across battles; its maximum is
+# BPL_BattleCommon:GetUpliftingGaugeMax, a constant 100.
+SAVE_DATA        = 0x140B253B0   # -> player save data (SetPlayerMAGGauge uses it too)
+SAVE_DATA_ORIG   = bytes.fromhex("4883ec28e8")
+UPLIFT_OFF       = 0x124         # party m_UpliftingGauge
+UPLIFT_MAX       = 100
 
 
 def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None:
     for t in SETNEXTSTEP_THUNKS:
         if data[off(t)] != 0xE9:
             return None
-    if data[off(MAG_SET):off(MAG_SET) + len(MAG_SET_ORIG)] != MAG_SET_ORIG or \
-       data[off(MAG_GET_MAX):off(MAG_GET_MAX) + len(MAG_GET_MAX_ORIG)] != MAG_GET_MAX_ORIG:
+    if data[off(SAVE_DATA):off(SAVE_DATA) + len(SAVE_DATA_ORIG)] != SAVE_DATA_ORIG:
         return None
 
     # Chains onto whatever the thunk currently jumps to (the Battle Refill
-    # cave when that patch is installed).
+    # or Deep Stock cave when that patch is installed).
     for t in SETNEXTSTEP_THUNKS:
         prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
         a = Asm(va(cave_off))
@@ -181,8 +183,8 @@ def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None
         a.raw("83 E8").raw("%02x" % BTL_STEP_READY)                       # sub eax, READY
         a.raw("83 F8").raw("%02x" % (BTL_STEP_START_EVENT - BTL_STEP_READY))
         a.ja("done")                          # only READY .. START_EVENT
-        a.call(MAG_GET_MAX).raw("89 C1")     # mov ecx, eax
-        a.call(MAG_SET)
+        a.call(SAVE_DATA).raw("48 85 C0").je("done")
+        a.raw("C7 80").raw(struct.pack("<II", UPLIFT_OFF, UPLIFT_MAX).hex())   # mov dword [rax+124h], 100
         a.label("done")
         a.raw("48 83 C4 20 5B C3")
         code = a.build()
