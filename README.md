@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.23**
+**Current version: 5.7.24**
 
 ## Features
 
@@ -26,9 +26,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    - **Battle Refill** - at the start of every battle, each battle-usable item
      you have ever obtained is topped back up to its carry limit.
    - **Deep Stock** - battle items stack to 99, but each battle still lets you
-     use only the normal carry limit of each (for example 5 Somas), and the
-     battle item menu shows that limit as the maximum. Items used in battle
-     come out of your stock.
+     use only the normal carry limit of each (for example 5 Somas). Menus show
+     the normal limit as the maximum, so extra stock shows as overflow (for
+     example 11/10). Items used in battle come out of your stock.
 
 7. **Superjump** - hold jump (Space, or A/B on a controller) to keep rising;
    release to fall. Pressing jump in mid-air starts rising again. While
@@ -269,8 +269,8 @@ every battle-usable item below 99 to 99 (with Free Growth Items, its ItemTable
 carries both changes). When a battle enters its first step, the stock above each
 item's original limit is set aside; until the battle ends, the item count the
 game reports is the real count minus that amount, so the battle offers at most
-the original limit, and the battle item menu shows that limit as the maximum.
-Using an item takes it from the real stock. The uninstallers
+the original limit. Using an item takes it from the real stock. The maximum the
+menus show is always the original limit; the game's own carry checks still use 99. The uninstallers
 remove the pak.
 
 ### Battle Refill

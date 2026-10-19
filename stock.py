@@ -10,9 +10,10 @@ limit of 99.
 Exe: when a battle enters E_BTL_STEP_PRE, the stock above each item's
 original limit is recorded as a hidden amount; until the battle reaches
 E_BTL_STEP_END_EVENT, ItemGetNum reports the real count minus that hidden
-amount (never below 0), and the item menu's ItemGetMaxNum (the Blueprint
-call only, so the game's own carry checks still see 99) reports the
-original limit. Items used in battle come out of the real stock.
+amount (never below 0). Items used in battle come out of the real stock.
+In and out of battle, the menus' ItemGetMaxNum (the Blueprint call only,
+so the game's own carry checks still see 99) reports the original limit,
+so stock above it shows as e.g. 11/10.
 """
 
 from __future__ import annotations
@@ -132,14 +133,13 @@ def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
     side_off = _place(data, side_off, side_end, a.build())
     _jmp_site(data, ITEM_GET_MAX, dest, 5)
 
-    # Blueprint ItemGetMaxNum: in battle, report the item's original limit.
+    # Blueprint ItemGetMaxNum: report the item's original limit.
     for t in MAX_THUNKS:
         prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
         a = Asm(va(side_off))
         a.raw("53 48 83 EC 20 4C 89 C3")          # push rbx; sub rsp,20h; mov rbx,r8 (result)
         a.raw("B8 FF FF FF FF")._rel("89 05", STOCK_LAST_ID)
         a.call(prev)
-        a._rel("8A 0D", STOCK_ACTIVE).raw("84 C9").je("done")
         a._rel("8B 05", STOCK_LAST_ID)            # mov eax, [last]
         a.raw("3D" + u32(ID_MAX)).ja("done")
         a._rel("48 8D 0D", limits_va)
