@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.22**
+**Current version: 5.7.23**
 
 ## Features
 
@@ -26,8 +26,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    - **Battle Refill** - at the start of every battle, each battle-usable item
      you have ever obtained is topped back up to its carry limit.
    - **Deep Stock** - battle items stack to 99, but each battle still lets you
-     use only the normal carry limit of each (for example 5 Somas). Items used
-     in battle come out of your stock.
+     use only the normal carry limit of each (for example 5 Somas), and the
+     battle item menu shows that limit as the maximum. Items used in battle
+     come out of your stock.
 
 7. **Superjump** - hold jump (Space, or A/B on a controller) to keep rising;
    release to fall. Pressing jump in mid-air starts rising again. While
@@ -46,14 +47,7 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.
 
-12. **Timed Quest Markers** - during the time-limited collection quests, every
-    collectible still to be found is marked on the map and minimap as a quest
-    target, and its marker disappears when you pick it up: the Young Stars
-    (She Who Rules the Night), the Four-Leaf Clovers (Cu Chulainn and
-    Scathach) and the Poisonous Flower Buds placed in the field (Mad Gasser;
-    buds dropped by Zhens are not marked). The markers reset with every run.
-
-13. **Newborn Clears Compendium** - starting a New Game+ with the Newborn
+12. **Newborn Clears Compendium** - starting a New Game+ with the Newborn
     method also empties the Demon Compendium, so the compendium, reverse
     fusion and summoning start fresh. The English carry-over lists on the New
     Game+ screen say so; Reborn and Godborn still keep the compendium.
@@ -84,7 +78,7 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
    Item Hacks (Battle Refill or Deep Stock), Superjump, Free Growth Items, Full Magatsuhi,
-   Skip Intro, Masakado Unlock, Timed Quest Markers, Newborn Clears Compendium).
+   Skip Intro, Masakado Unlock, Newborn Clears Compendium).
 
 The installer backs up the original executable as:
 
@@ -111,7 +105,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all thirteen features, with Battle Refill as the
+With no switches, it installs all twelve features, with Battle Refill as the
 Item Hack; add `--deep-stock` to get Deep Stock instead. To install only some of
 them, add a skip-switch for each feature you do **not** want:
 
@@ -127,7 +121,6 @@ them, add a skip-switch for each feature you do **not** want:
 --no-magatsuhi
 --no-intro
 --no-masakado
---no-markers
 --no-newborn
 ```
 
@@ -170,7 +163,6 @@ Optional patch flags:
 --no-magatsuhi
 --no-intro
 --no-masakado
---no-markers
 --no-newborn
 ```
 
@@ -261,15 +253,6 @@ through its opening steps (ready, pre-battle, encounter and start event, each
 run once before the first turn), the player's Magatsuhi gauge is set to its
 maximum through the game's own setter.
 
-### Timed Quest Markers
-
-A small override pak built at install time from your own `pakchunk0`. Each
-collectible of the three quests is added to its map's minimap icon table as a
-quest-target marker at the collectible's placement in the quest's event level.
-A marker shows while the quest's collection counter is active and hides once
-that collectible's own flag is set; the quests clear those flags at the start
-of every run. The uninstallers remove the pak.
-
 ### Newborn Clears Compendium
 
 The Newborn carry-over routine is followed by the game's own compendium reset,
@@ -286,7 +269,8 @@ every battle-usable item below 99 to 99 (with Free Growth Items, its ItemTable
 carries both changes). When a battle enters its first step, the stock above each
 item's original limit is set aside; until the battle ends, the item count the
 game reports is the real count minus that amount, so the battle offers at most
-the original limit. Using an item takes it from the real stock. The uninstallers
+the original limit, and the battle item menu shows that limit as the maximum.
+Using an item takes it from the real stock. The uninstallers
 remove the pak.
 
 ### Battle Refill

@@ -10,7 +10,9 @@ limit of 99.
 Exe: when a battle enters E_BTL_STEP_PRE, the stock above each item's
 original limit is recorded as a hidden amount; until the battle reaches
 E_BTL_STEP_END_EVENT, ItemGetNum reports the real count minus that hidden
-amount (never below 0). Items used in battle come out of the real stock.
+amount (never below 0), and the item menu's ItemGetMaxNum (the Blueprint
+call only, so the game's own carry checks still see 99) reports the
+original limit. Items used in battle come out of the real stock.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from __future__ import annotations
 import os
 import struct
 
-from gameplay_patches import (Asm, BTL_NEXTSTEP_OFF, BTL_STEP_PRE, ITEM_GET_NUM,
+from gameplay_patches import (Asm, BTL_NEXTSTEP_OFF, BTL_STEP_PRE, ITEM_GET_MAX, ITEM_GET_NUM,
                               SETNEXTSTEP_THUNKS, _jmp_site, _place, va, off)
 from shop_pak import ITEM_ID_OFF, ITEM_ROW, ITEM_TABLE, _section
 
@@ -31,7 +33,11 @@ ID_MAX = 135               # use items are 1..135
 
 BTL_STEP_END_EVENT = 24
 STOCK_ACTIVE = 0x1549A9900   # spare zeroed bytes in a writable section page
+STOCK_LAST_ID = 0x1549A9908  # item ID of the latest ItemGetMaxNum call
 STOCK_HIDDEN = 0x1549A9910   # u8 per item ID, 0..ID_MAX
+# Blueprint exec thunks of ItemGetMaxNum (5-byte jumps into the protected
+# bodies), one per item function library.
+MAX_THUNKS = [0x140CCA910, 0x140CCBA60]
 
 
 def edit_item_max(uexp: bytes) -> tuple[bytes, dict[int, int]]:
@@ -53,12 +59,12 @@ def edit_item_max(uexp: bytes) -> tuple[bytes, dict[int, int]]:
 
 
 def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
-                     orig: dict[int, int]) -> int | None:
-    for t in SETNEXTSTEP_THUNKS:
+                     orig: dict[int, int], side_off: int, side_end: int) -> int | None:
+    """Main code goes in the shared cave; the ItemGetMaxNum hooks go in a
+    second, smaller cave (side_off..side_end)."""
+    for t in SETNEXTSTEP_THUNKS + MAX_THUNKS + [ITEM_GET_NUM, ITEM_GET_MAX]:
         if data[off(t)] != 0xE9:
             return None
-    if data[off(ITEM_GET_NUM)] != 0xE9:
-        return None
     num_orig = ITEM_GET_NUM + 5 + struct.unpack_from("<i", data, off(ITEM_GET_NUM) + 1)[0]
     limits = bytes(orig.get(i, 0) for i in range(ID_MAX + 1))
 
@@ -111,9 +117,38 @@ def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
         a.label("done")
         a.raw("48 83 C4 20 5F 5E 5B C3")
         a.label("limits")
+        limits_va = va(cave_off) + len(a.b)
         a.b += limits
         dest = va(cave_off)
         cave_off = _place(data, cave_off, cave_end, a.build())
+        _jmp_site(data, t, dest, 5)
+
+    # ItemGetMaxNum body: remember which item was asked for.
+    max_orig = ITEM_GET_MAX + 5 + struct.unpack_from("<i", data, off(ITEM_GET_MAX) + 1)[0]
+    a = Asm(va(side_off))
+    a._rel("89 0D", STOCK_LAST_ID)                # mov [last], ecx
+    a.jmp(max_orig)
+    dest = va(side_off)
+    side_off = _place(data, side_off, side_end, a.build())
+    _jmp_site(data, ITEM_GET_MAX, dest, 5)
+
+    # Blueprint ItemGetMaxNum: in battle, report the item's original limit.
+    for t in MAX_THUNKS:
+        prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+        a = Asm(va(side_off))
+        a.raw("53 48 83 EC 20 4C 89 C3")          # push rbx; sub rsp,20h; mov rbx,r8 (result)
+        a.raw("B8 FF FF FF FF")._rel("89 05", STOCK_LAST_ID)
+        a.call(prev)
+        a._rel("8A 0D", STOCK_ACTIVE).raw("84 C9").je("done")
+        a._rel("8B 05", STOCK_LAST_ID)            # mov eax, [last]
+        a.raw("3D" + u32(ID_MAX)).ja("done")
+        a._rel("48 8D 0D", limits_va)
+        a.raw("0F B6 0C 01 85 C9").je("done")    # movzx ecx,[rcx+rax]; test ecx,ecx
+        a.raw("89 0B")                            # mov [rbx], ecx
+        a.label("done")
+        a.raw("48 83 C4 20 5B C3")
+        dest = va(side_off)
+        side_off = _place(data, side_off, side_end, a.build())
         _jmp_site(data, t, dest, 5)
     return cave_off
 

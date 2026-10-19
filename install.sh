@@ -13,7 +13,7 @@
 # Patch flags are passed through to the patcher:
 #   --no-essences  --no-heal  --no-mimans  --no-miracles  --no-compendium
 #   --no-refill  --no-jump  --no-shop  --no-magatsuhi  --no-intro  --no-masakado
-#   --no-markers  --no-newborn
+#   --no-newborn
 #   --deep-stock   (Deep Stock instead of Battle Refill)
 #
 set -euo pipefail

@@ -39,7 +39,6 @@ set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses fre
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
 set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
-set /p P12="   Timed Quest Markers (timed-quest collectibles marked on the map)? [Y/n]: "
 set /p P13="   Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)? [Y/n]: "
 
 set "FLAGS="
@@ -55,7 +54,6 @@ if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
 if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
 if /i "%P10%"=="n" set "FLAGS=!FLAGS! --no-intro"
 if /i "%P11%"=="n" set "FLAGS=!FLAGS! --no-masakado"
-if /i "%P12%"=="n" set "FLAGS=!FLAGS! --no-markers"
 if /i "%P13%"=="n" set "FLAGS=!FLAGS! --no-newborn"
 goto :run_patcher
 
