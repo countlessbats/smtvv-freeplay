@@ -36,9 +36,10 @@ BTL_STEP_END_EVENT = 24
 STOCK_ACTIVE = 0x1549A9900   # spare zeroed bytes in a writable section page
 STOCK_LAST_ID = 0x1549A9908  # item ID of the latest ItemGetMaxNum call
 STOCK_HIDDEN = 0x1549A9910   # u8 per item ID, 0..ID_MAX
-# Blueprint exec thunks of ItemGetMaxNum (5-byte jumps into the protected
-# bodies), one per item function library.
-MAX_THUNKS = [0x140CCA910, 0x140CCBA60]
+# Blueprint exec thunk of ItemGetMaxNum (a 5-byte jump into the protected
+# body). The other registered copy (0x140CCA910) must stay untouched:
+# redirecting it makes the game exit during startup.
+MAX_THUNKS = [0x140CCBA60]
 
 
 def edit_item_max(uexp: bytes) -> tuple[bytes, dict[int, int]]:
