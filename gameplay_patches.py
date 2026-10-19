@@ -102,6 +102,7 @@ BTL_NEXTSTEP_OFF  = 0x262   # m_NextStep
 BTL_STEP_PRE      = 3
 BTL_STEP_READY       = 2   # E_BTL_STEP_READY .. E_BTL_STEP_START_EVENT run once per
 BTL_STEP_START_EVENT = 5   # battle, before the first turn
+BTL_STEP_END_EVENT   = 24  # E_BTL_STEP_END_EVENT .. FINISH_WAIT close a battle
 
 ITEM_GET          = 0x140ACE9A0   # ItemGet(id, count)  (adds)
 ITEM_GET_MAX      = 0x140ACF220   # ItemGetMaxNum(id) -> int
@@ -156,7 +157,10 @@ def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
 # ---------------------------------------------------------------------------
 # The battle Magatsuhi gauge is the party's Uplifting gauge (PartyData
 # m_UpliftingGauge), kept in the save data across battles; its maximum is
-# BPL_BattleCommon:GetUpliftingGaugeMax, a constant 100.
+# BPL_BattleCommon:GetUpliftingGaugeMax, a constant 100. A battle takes its
+# copy before its first step and writes it back as it ends, so the gauge is
+# filled on every closing step (END_EVENT onwards), after that write-back,
+# and the next battle starts full.
 SAVE_DATA        = 0x140B253B0   # -> player save data (SetPlayerMAGGauge uses it too)
 SAVE_DATA_ORIG   = bytes.fromhex("4883ec28e8")
 UPLIFT_OFF       = 0x124         # party m_UpliftingGauge
@@ -179,10 +183,8 @@ def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None
         a.raw("48 83 EC 20")                  # sub rsp, 20h
         a.raw("48 89 CB")                     # mov rbx, rcx
         a.call(prev)
-        a.raw("0F B6 83").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex())   # movzx eax, m_NextStep
-        a.raw("83 E8").raw("%02x" % BTL_STEP_READY)                       # sub eax, READY
-        a.raw("83 F8").raw("%02x" % (BTL_STEP_START_EVENT - BTL_STEP_READY))
-        a.ja("done")                          # only READY .. START_EVENT
+        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_END_EVENT)
+        a._rel("0F 82", "done")               # jb: only the closing steps
         a.call(SAVE_DATA).raw("48 85 C0").je("done")
         a.raw("C7 80").raw(struct.pack("<II", UPLIFT_OFF, UPLIFT_MAX).hex())   # mov dword [rax+124h], 100
         a.label("done")

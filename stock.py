@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import struct
 
-from gameplay_patches import (Asm, BTL_NEXTSTEP_OFF, BTL_STEP_PRE, ITEM_GET_MAX, ITEM_GET_NUM,
+from gameplay_patches import (Asm, BTL_NEXTSTEP_OFF, BTL_STEP_END_EVENT, BTL_STEP_PRE, ITEM_GET_MAX, ITEM_GET_NUM,
                               SETNEXTSTEP_THUNKS, _jmp_site, _place, va, off)
 from shop_pak import ITEM_ID_OFF, ITEM_ROW, ITEM_TABLE, _section
 
@@ -37,7 +37,6 @@ ITEM_BATTLE_OFF = 61       # nonzero: usable in battle
 STOCK_MAX = 99
 ID_MAX = 135               # use items are 1..135
 
-BTL_STEP_END_EVENT = 24
 STOCK_ACTIVE = 0x1549A9900   # spare zeroed bytes in a writable section page
 STOCK_LAST_ID = 0x1549A9908  # item ID of the latest ItemGetMaxNum call
 STOCK_HIDDEN = 0x1549A9910   # u8 per item ID, 0..ID_MAX

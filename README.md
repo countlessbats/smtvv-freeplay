@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.30**
+**Current version: 5.7.31**
 
 ## Features
 
@@ -37,8 +37,8 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 8. **Free Growth Items** - Gospels, Grimoires, all Sutras, Balms and Incenses
    are sold in the shop from the start of the game for 0 Macca.
 
-9. **Full Magatsuhi** - the Magatsuhi gauge is filled at the start of every
-   battle. Magatsuhi gain during battle is unchanged.
+9. **Full Magatsuhi** - every battle starts with a full Magatsuhi gauge (it
+   refills as each battle ends). Magatsuhi gain during battle is unchanged.
 
 10. **Skip Intro** - no logo or warning screens, no opening movie and no
     "press any button" screen: after a few seconds of black screen the game
@@ -248,10 +248,11 @@ held. The uninstallers remove the pak.
 
 ### Full Magatsuhi
 
-Uses the same `SetNextStep` hook as Battle Refill (below): as a battle steps
-through its opening steps (ready, pre-battle, encounter and start event, each
-run once before the first turn), the party's Magatsuhi gauge, which carries
-over between battles, is set to its maximum of 100.
+Uses the same `SetNextStep` hook as Battle Refill (below). The party's
+Magatsuhi gauge carries over between battles: each battle takes it at the
+start and writes it back at the end. As a battle runs its closing steps, after
+that write-back, the gauge is set to its maximum of 100, so the next battle
+starts with a full gauge.
 
 ### Newborn Clears Compendium
 
