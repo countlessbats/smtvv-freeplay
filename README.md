@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.29**
+**Current version: 5.7.30**
 
 ## Features
 
@@ -267,7 +267,10 @@ languages show the original lists. The uninstallers remove the pak.
 Item tables are left as they are. The item menus show each item's normal
 carry limit, while the game's own carry checks are told 99 for every
 battle-usable item with a lower limit, so stock above the limit shows as
-overflow (for example 11/10). When a battle enters its first step, the stock above each item's
+overflow (for example 11/10). A small override pak built from your own
+`pakchunk0` makes the camp item list colour such counts like a full stack
+(it normally does so only when the count equals the limit); the
+uninstallers remove it. When a battle enters its first step, the stock above each item's
 normal limit is set aside; until the battle ends, the item count the game
 reports is the real count minus that amount, so the battle offers at most the
 normal limit. Using an item takes it from the real stock.

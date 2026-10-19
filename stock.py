@@ -7,7 +7,9 @@ The ItemTable keeps its limits (section 0, 100-byte rows, row N-1 = item N;
 +58 carry limit, +61 nonzero when usable in battle). For every battle item
 with a limit below 99, the exe's ItemGetMaxNum reports 99, except to the
 item menus' list rows, so the game's carry checks allow 99 while the menus
-show the normal limit and stock above it as e.g. 11/10.
+show the normal limit and stock above it as e.g. 11/10. STOCK_PAK carries
+the camp item list widget with its "count == max" colour check turned into
+"count >= max".
 
 When a battle enters E_BTL_STEP_PRE, the stock above each item's normal
 limit is recorded as a hidden amount; until the battle reaches
@@ -27,6 +29,8 @@ from gameplay_patches import (Asm, BTL_NEXTSTEP_OFF, BTL_STEP_PRE, ITEM_GET_MAX,
 from shop_pak import ITEM_ID_OFF, ITEM_ROW, ITEM_TABLE, _section
 
 STOCK_PAK = "pakchunk93_FreeplayStock_P.pak"
+ITEM_LIST = "Project/Content/Blueprints/UI/Camp/Item/WB_CampItemList"
+IMPORT_SIZE = 28
 
 ITEM_MAX_OFF = 58          # u8 carry limit
 ITEM_BATTLE_OFF = 61       # nonzero: usable in battle
@@ -218,15 +222,42 @@ def read_item_table(game_dir: str, paks_subpath: str, source_pak: str,
             run_repak(repak, "get", src, ITEM_TABLE + ".uexp"))
 
 
-def build_stock_pak(game_dir: str, paks_subpath: str, item_asset: bytes,
-                    item_exp: bytes, repak: str, run_repak) -> None:
-    """Build STOCK_PAK (ItemTable only) in the game's Paks folder."""
+def edit_item_list(uasset: bytes, uexp: bytes) -> tuple[bytes, bytes]:
+    """WB_CampItemList colours a row's count when it equals the maximum;
+    make it count >= maximum, so stock above the limit is coloured too."""
+    from ue_asset import Package
+
+    pkg = Package(uasset, uexp)
+    at = struct.unpack_from("<i", pkg.a, pkg.at["import_offset"])[0]
+    count = struct.unpack_from("<i", pkg.a, pkg.at["import_offset"] - 4)[0]
+    hits = []
+    for k in range(count):
+        o = at + k * IMPORT_SIZE
+        outer, name = struct.unpack_from("<ii", pkg.a, o + 16)
+        if pkg.names[name] == "EqualEqual_IntInt" and outer < 0:
+            if pkg.names[struct.unpack_from("<i", pkg.a, at + (-outer - 1) * IMPORT_SIZE + 20)[0]]                     == "KismetMathLibrary":
+                hits.append(o)
+    if len(hits) != 1:
+        raise RuntimeError("item list colour check not found - game update?")
+    struct.pack_into("<ii", pkg.a, hits[0] + 20, pkg.name("GreaterEqual_IntInt"), 0)
+    return pkg.build()
+
+
+def build_stock_pak(game_dir: str, paks_subpath: str, source_pak: str,
+                    repak: str, run_repak) -> None:
+    """Build STOCK_PAK (the item list widget) in the game's Paks folder."""
     import shutil
     import tempfile
 
+    src = os.path.join(game_dir, paks_subpath, source_pak)
+    if not os.path.isfile(src):
+        raise RuntimeError(f"{source_pak} not found")
+    files = dict(zip((ITEM_LIST + ".uasset", ITEM_LIST + ".uexp"),
+                     edit_item_list(run_repak(repak, "get", src, ITEM_LIST + ".uasset"),
+                                    run_repak(repak, "get", src, ITEM_LIST + ".uexp"))))
     staging = tempfile.mkdtemp(prefix="smtvv_stock_")
     try:
-        for entry, blob in ((ITEM_TABLE + ".uasset", item_asset), (ITEM_TABLE + ".uexp", item_exp)):
+        for entry, blob in files.items():
             path = os.path.join(staging, *entry.split("/"))
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "wb") as fh:

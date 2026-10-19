@@ -80,7 +80,7 @@ import stock  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.29"
+MOD_VERSION = "5.7.30"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -690,6 +690,12 @@ def main() -> None:
             print(f"    Battle items  : {len(deep_orig)} can be stocked to {stock.STOCK_MAX}")
         except RuntimeError as exc:
             print(f"\n  WARNING: Deep Stock skipped - {exc}")
+        if deep_ok:
+            try:
+                stock.build_stock_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
+                print(f"    Data pak      : {stock.STOCK_PAK}")
+            except RuntimeError as exc:
+                print(f"    WARNING: Deep Stock data pak not built - {exc}")
 
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
                                (do_jump, "Superjump", gameplay_patches.patch_jump),
