@@ -165,6 +165,7 @@ SAVE_DATA        = 0x140B253B0   # -> player save data (SetPlayerMAGGauge uses i
 SAVE_DATA_ORIG   = bytes.fromhex("4883ec28e8")
 UPLIFT_OFF       = 0x124         # party m_UpliftingGauge
 UPLIFT_MAX       = 100
+BTL_WORK_LAST    = 0x1549A9A00   # latest BattleMainWorkBase, for inspection
 
 
 def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None:
@@ -183,6 +184,7 @@ def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None
         a.raw("48 83 EC 20")                  # sub rsp, 20h
         a.raw("48 89 CB")                     # mov rbx, rcx
         a.call(prev)
+        a._rel("48 89 1D", BTL_WORK_LAST)     # mov [last battle work], rbx
         a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_END_EVENT)
         a._rel("0F 82", "done")               # jb: only the closing steps
         a.call(SAVE_DATA).raw("48 85 C0").je("done")
