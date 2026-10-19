@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.28**
+**Current version: 5.7.29**
 
 ## Features
 
@@ -264,10 +264,10 @@ languages show the original lists. The uninstallers remove the pak.
 
 ### Deep Stock
 
-Item tables are left as they are, so menus show each item's normal carry
-limit; the game's own carry checks are told 99 for every battle-usable item
-with a lower limit, so stock above the limit shows as overflow (for example
-11/10). When a battle enters its first step, the stock above each item's
+Item tables are left as they are. The item menus show each item's normal
+carry limit, while the game's own carry checks are told 99 for every
+battle-usable item with a lower limit, so stock above the limit shows as
+overflow (for example 11/10). When a battle enters its first step, the stock above each item's
 normal limit is set aside; until the battle ends, the item count the game
 reports is the real count minus that amount, so the battle offers at most the
 normal limit. Using an item takes it from the real stock.

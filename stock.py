@@ -4,10 +4,10 @@ each battle still allows only the game's normal carry limit of each item
 (e.g. 5 Somas).
 
 The ItemTable keeps its limits (section 0, 100-byte rows, row N-1 = item N;
-+58 carry limit, +61 nonzero when usable in battle), so menus show the
-normal limit and stock above it shows as e.g. 11/10. For every battle item
-with a limit below 99, the exe's ItemGetMaxNum reports 99 to the game's
-carry checks.
++58 carry limit, +61 nonzero when usable in battle). For every battle item
+with a limit below 99, the exe's ItemGetMaxNum reports 99, except to the
+item menus' list rows, so the game's carry checks allow 99 while the menus
+show the normal limit and stock above it as e.g. 11/10.
 
 When a battle enters E_BTL_STEP_PRE, the stock above each item's normal
 limit is recorded as a hidden amount; until the battle reaches
@@ -37,7 +37,9 @@ BTL_STEP_END_EVENT = 24
 STOCK_ACTIVE = 0x1549A9900   # spare zeroed bytes in a writable section page
 STOCK_LAST_ID = 0x1549A9908  # item ID of the latest ItemGetMaxNum call
 STOCK_HIDDEN = 0x1549A9910   # u8 per item ID, 0..ID_MAX
-STOCK_CALLERS = 0x1549A9A00  # 16 x (u64 return address, u32 count) of ItemGetMaxNum callers
+# Item menu code that fills each list row from ItemGetMaxNum / ItemGetNum
+# (unpacked at run time, so only its address range is used).
+ITEM_MENU_ROWS = (0x147A95A40, 0x147A95C00)
 # Blueprint exec thunk of ItemGetMaxNum (a 5-byte jump into the protected
 # body), hooked in place.
 MAX_THUNKS = [0x140CCBA60]
@@ -159,21 +161,13 @@ def patch_deep_stock(data: bytearray, cave_off: int, cave_end: int,
         raise RuntimeError("code cave too small")
 
     def max_hook(a):
-        # Caller table: up to 16 (return address, call count) pairs.
-        a.raw("48 8B 04 24")                      # mov rax, [rsp]
-        a._rel("4C 8D 0D", STOCK_CALLERS)         # lea r9, callers
-        a.raw("31 D2")                            # xor edx, edx
-        a.label("find")
-        a.raw("4D 8B 04 11 49 39 C0").je("hit")   # mov r8,[r9+rdx]; cmp r8,rax
-        a.raw("4D 85 C0").je("new")
-        a.raw("83 C2 10 81 FA 00 01 00 00")._rel("0F 82", "find")   # add edx,16; cmp edx,256; jb
-        a.jmp("counted")
-        a.label("new")
-        a.raw("49 89 04 11")                      # mov [r9+rdx], rax
-        a.label("hit")
-        a.raw("41 FF 44 11 08")                   # inc dword [r9+rdx+8]
-        a.label("counted")
+        a.raw("48 8B 04 24")                      # mov rax, [rsp] (return address)
         a._rel("89 0D", STOCK_LAST_ID)            # mov [last], ecx
+        # The item menus' list rows get the table limit as is.
+        a.raw("49 B8" + struct.pack("<Q", ITEM_MENU_ROWS[0]).hex())   # mov r8, imm64
+        a.raw("4C 29 C0")                         # sub rax, r8
+        a.raw("48 3D" + u32(ITEM_MENU_ROWS[1] - ITEM_MENU_ROWS[0]))
+        a._rel("0F 82", max_orig)                 # jb: tail-call the original
         a.raw("53 48 83 EC 20 89 CB")             # push rbx; sub rsp,20h; mov ebx,ecx
         a.call(max_orig)
         a.raw("81 FB" + u32(ID_MAX)).ja("keep")
