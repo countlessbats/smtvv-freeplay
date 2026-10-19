@@ -35,7 +35,7 @@ NEWBORN_OLD = ("The following elements will be carried over:\n　\n- Enemy info\
                "- Demon Compendium\n- Unlocked fusions\n- Certain Miracles\n　\n")
 NEWBORN_NEW = ("The following elements will be carried over:\n　\n- Enemy info\n"
                "- Unlocked fusions\n- Certain Miracles\n　\n"
-               "The Demon Compendium starts empty.\n")
+               "The Demon Compendium is not carried over.\n　\n")
 REBORN_OLD = "- Glory\n　\n"
 REBORN_NEW = "- Glory\n- Demon Compendium\n　\n"
 REBORN_HEAD = "In addition to the elements from Newborn,"

@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.20**
+**Current version: 5.7.21**
 
 ## Features
 
@@ -270,8 +270,8 @@ of every run. The uninstallers remove the pak.
 The Newborn carry-over routine is followed by the game's own compendium reset,
 which refills the compendium with unregistered entries, exactly as a new game
 starts. A small override pak built from your own `pakchunk0` updates the
-English carry-over lists: Newborn no longer lists the Demon Compendium and says
-it starts empty, and Reborn, whose list builds on Newborn's, lists it. Other
+English carry-over lists: Newborn no longer lists the Demon Compendium and states
+that it is not carried over, and Reborn, whose list builds on Newborn's, lists it. Other
 languages show the original lists. The uninstallers remove the pak.
 
 ### Battle Refill
