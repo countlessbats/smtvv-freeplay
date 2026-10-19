@@ -17,6 +17,14 @@ SAVE_SLOT_NATIVE = 0x140B70210   # Save(list index) -> bool; 0..19 = save slots 
 SAVE_SLOT_ORIG   = bytes.fromhex("4056 4881ec00020000 4863f1".replace(" ", ""))
 BTL_STEP_FINISH_WAIT = 31        # the battle's last step
 
+# Inside Save: builds the save object from the save data. Its last argument
+# also fills the header the load menu reads (player name, location,
+# language); Save passes it only for the autosave slots, so it is set here
+# while the autosave runs.
+SAVE_BUILD_SITE  = 0x140B702DA
+SAVE_BUILD_ORIG  = bytes.fromhex("e8e1d7f9ff")
+SAVE_BUILD_FN    = 0x140B0DAC0
+
 # Player movement update, called every frame the player can move on the field.
 FIELD_TICK_SITE  = 0x140A6AA7D
 FIELD_TICK_ORIG  = bytes.fromhex("e85e110000")
@@ -25,6 +33,7 @@ FIELD_TICK_FN    = 0x140A6BBE0
 AUTOSAVE_PENDING = 0x1549A9A08   # field updates left before saving (0 = none due)
 AUTOSAVE_COUNT   = 0x1549A9A0C   # saves written this session
 AUTOSAVE_RESULT  = 0x1549A9A10   # result of the last save
+AUTOSAVE_BUSY    = 0x1549A9A14   # nonzero while the autosave runs
 # Field updates to wait after the battle's last step, so the battle has
 # written its results back before the save.
 AUTOSAVE_DELAY   = 120
@@ -41,6 +50,8 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
     if bytes(data[off(SAVE_SLOT_NATIVE):off(SAVE_SLOT_NATIVE) + len(SAVE_SLOT_ORIG)]) != SAVE_SLOT_ORIG:
         return False
     if bytes(data[off(FIELD_TICK_SITE):off(FIELD_TICK_SITE) + 5]) != FIELD_TICK_ORIG:
+        return False
+    if bytes(data[off(SAVE_BUILD_SITE):off(SAVE_BUILD_SITE) + 5]) != SAVE_BUILD_ORIG:
         return False
 
     # Battle end: arm the save.
@@ -69,9 +80,11 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
         a.raw("51 52 41 50 41 51 48 83 EC 68")           # keep the argument registers
         for i in range(4):                               # movdqu [rsp+20h+i*16], xmm0..3
             a.raw("F3 0F 7F %02X 24 %02X" % (0x44 | (i << 3), 0x20 + 16 * i))
+        a.raw("B0 01")._rel("88 05", AUTOSAVE_BUSY)    # mov al,1; mov [busy],al
         a.raw("B9" + struct.pack("<I", slot - 1).hex())  # mov ecx, list index
         a.call(SAVE_SLOT_NATIVE)
         a._rel("88 05", AUTOSAVE_RESULT)
+        a.raw("31 C0")._rel("88 05", AUTOSAVE_BUSY)
         a._rel("FF 05", AUTOSAVE_COUNT)
         for i in range(4):
             a.raw("F3 0F 6F %02X 24 %02X" % (0x44 | (i << 3), 0x20 + 16 * i))
@@ -81,4 +94,15 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
         return a
 
     _jmp_site(data, FIELD_TICK_SITE, put_code(data, caves, tick_hook), 5, opcode=0xE8)
+
+    # Save object build: fill the header too while the autosave runs.
+    def build_hook(a):
+        a._rel("8A 05", AUTOSAVE_BUSY)                   # mov al, [busy]
+        a.raw("84 C0").je("go")
+        a.raw("41 B9 01 00 00 00")                       # mov r9d, 1
+        a.label("go")
+        a.jmp(SAVE_BUILD_FN)
+        return a
+
+    _jmp_site(data, SAVE_BUILD_SITE, put_code(data, caves, build_hook), 5, opcode=0xE8)
     return True

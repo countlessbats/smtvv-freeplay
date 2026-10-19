@@ -190,7 +190,7 @@ if [ ${#PATCH_FLAGS[@]} -eq 0 ]; then
     }
     ask_items() {
         local q def A
-        echo "  Item Hacks: [R] Battle Refill (battle items topped up at every battle start)"
+        echo "  Item Hacks: [R] Battle Refill (any battle item you've found once tops off at the start of every battle)"
         echo "              [S] Stockpile (stack battle items to 99; normal limit per battle)"
         echo "              [N] Neither"
         case "$INST_ITEMS" in

@@ -177,7 +177,7 @@ if /i "!A!"=="n" exit /b 0
 goto :ask_again
 
 :ask_items
-echo    Item Hacks: [R] Battle Refill (battle items topped up at every battle start)
+echo    Item Hacks: [R] Battle Refill (any battle item you've found once tops off at the start of every battle)
 echo                [S] Stockpile (stack battle items to 99; normal limit per battle)
 echo                [N] Neither
 set "SEL_itemhacks="

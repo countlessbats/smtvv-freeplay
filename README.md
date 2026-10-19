@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.36**
+**Current version: 5.7.37**
 
 ## Features
 
@@ -23,8 +23,8 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
    costs no Macca.
 
 6. **Item Hacks** - choose one:
-   - **Battle Refill** - at the start of every battle, each battle-usable item
-     you have ever obtained is topped back up to its carry limit.
+   - **Battle Refill** - any battle item you've found once tops off at the
+     start of every battle.
    - **Stockpile** - battle items stack to 99, but each battle still lets you
      use only the normal carry limit of each (for example 5 Somas). Menus show
      the normal limit as the maximum, so extra stock shows as overflow (for
