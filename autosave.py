@@ -1,0 +1,84 @@
+"""
+Autosave after battle: once a battle has closed and the player is back on
+the field, the game is saved to a chosen slot.
+
+The battle stores the player's position for saving itself, so a plain save
+(BPL_SaveLoad:Save, the same routine the save menu ends in) restores the
+spot the battle started from.
+"""
+
+from __future__ import annotations
+
+import struct
+
+from gameplay_patches import BTL_NEXTSTEP_OFF, SETNEXTSTEP_THUNKS, _jmp_site, off, put_code
+
+SAVE_SLOT_NATIVE = 0x140B70210   # Save(list index) -> bool; 0..19 = save slots 1..20
+SAVE_SLOT_ORIG   = bytes.fromhex("4056 4881ec00020000 4863f1".replace(" ", ""))
+BTL_STEP_FINISH_WAIT = 31        # the battle's last step
+
+# Player movement update, called every frame the player can move on the field.
+FIELD_TICK_SITE  = 0x140A6AA7D
+FIELD_TICK_ORIG  = bytes.fromhex("e85e110000")
+FIELD_TICK_FN    = 0x140A6BBE0
+
+AUTOSAVE_PENDING = 0x1549A9A08   # field updates left before saving (0 = none due)
+AUTOSAVE_COUNT   = 0x1549A9A0C   # saves written this session
+AUTOSAVE_RESULT  = 0x1549A9A10   # result of the last save
+# Field updates to wait after the battle's last step, so the battle has
+# written its results back before the save.
+AUTOSAVE_DELAY   = 120
+
+SLOT_MIN, SLOT_MAX = 1, 20
+
+
+def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
+    if not SLOT_MIN <= slot <= SLOT_MAX:
+        raise ValueError(f"save slot must be {SLOT_MIN}-{SLOT_MAX}")
+    for t in SETNEXTSTEP_THUNKS:
+        if data[off(t)] != 0xE9:
+            return False
+    if bytes(data[off(SAVE_SLOT_NATIVE):off(SAVE_SLOT_NATIVE) + len(SAVE_SLOT_ORIG)]) != SAVE_SLOT_ORIG:
+        return False
+    if bytes(data[off(FIELD_TICK_SITE):off(FIELD_TICK_SITE) + 5]) != FIELD_TICK_ORIG:
+        return False
+
+    # Battle end: arm the save.
+    for t in SETNEXTSTEP_THUNKS:
+        prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
+
+        def step_hook(a, prev=prev):
+            a.raw("53 48 83 EC 20 48 89 CB")              # push rbx; sub rsp,20h; mov rbx,rcx
+            a.call(prev)
+            a.raw("80 BB" + struct.pack("<I", BTL_NEXTSTEP_OFF).hex() + "%02x" % BTL_STEP_FINISH_WAIT)
+            a.jne("done")
+            a.raw("B8" + struct.pack("<I", AUTOSAVE_DELAY).hex())
+            a._rel("89 05", AUTOSAVE_PENDING)            # mov [pending], eax
+            a.label("done")
+            a.raw("48 83 C4 20 5B C3")
+            return a
+
+        _jmp_site(data, t, put_code(data, caves, step_hook), 5)
+
+    # Field update: count down, then save.
+    def tick_hook(a):
+        a._rel("8B 05", AUTOSAVE_PENDING)                # mov eax, [pending]
+        a.raw("85 C0").je("go")
+        a._rel("FF 0D", AUTOSAVE_PENDING)                # dec dword [pending]
+        a.jne("go")
+        a.raw("51 52 41 50 41 51 48 83 EC 68")           # keep the argument registers
+        for i in range(4):                               # movdqu [rsp+20h+i*16], xmm0..3
+            a.raw("F3 0F 7F %02X 24 %02X" % (0x44 | (i << 3), 0x20 + 16 * i))
+        a.raw("B9" + struct.pack("<I", slot - 1).hex())  # mov ecx, list index
+        a.call(SAVE_SLOT_NATIVE)
+        a._rel("88 05", AUTOSAVE_RESULT)
+        a._rel("FF 05", AUTOSAVE_COUNT)
+        for i in range(4):
+            a.raw("F3 0F 6F %02X 24 %02X" % (0x44 | (i << 3), 0x20 + 16 * i))
+        a.raw("48 83 C4 68 41 59 41 58 5A 59")
+        a.label("go")
+        a.jmp(FIELD_TICK_FN)
+        return a
+
+    _jmp_site(data, FIELD_TICK_SITE, put_code(data, caves, tick_hook), 5, opcode=0xE8)
+    return True

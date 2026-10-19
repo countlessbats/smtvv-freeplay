@@ -40,6 +40,18 @@ set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
 set /p P10="   Skip Intro (no logos or opening movie; boot to title menu)? [Y/n]: "
 set /p P11="   Masakado Unlock (powered-up Masakado fight without the Kiou Sword)? [Y/n]: "
 set /p P13="   Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)? [Y/n]: "
+:ask_autosave
+set "P14="
+set /p P14="   Autosave after every battle into save slot (1-20, blank = off): "
+if not defined P14 goto :autosave_done
+set "SLOTOK="
+for /l %%N in (1,1,20) do if "!P14!"=="%%N" set "SLOTOK=1"
+if not defined SLOTOK (
+    echo    Please enter a slot number from 1 to 20, or leave it blank.
+    goto :ask_autosave
+)
+echo    Note: slot !P14! will be overwritten after every battle.
+:autosave_done
 
 set "FLAGS="
 if /i "%P1%"=="n" set "FLAGS=!FLAGS! --no-essences"
@@ -55,6 +67,7 @@ if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
 if /i "%P10%"=="n" set "FLAGS=!FLAGS! --no-intro"
 if /i "%P11%"=="n" set "FLAGS=!FLAGS! --no-masakado"
 if /i "%P13%"=="n" set "FLAGS=!FLAGS! --no-newborn"
+if defined P14 set "FLAGS=!FLAGS! --autosave-slot !P14!"
 goto :run_patcher
 
 :run_patcher

@@ -3,7 +3,8 @@
 A quality-of-life patch bundle for *Shin Megami Tensei V: Vengeance*: Reusable
 Essences, Leyline Auto-Heal, Miman Reveal, NG+ Miracles From Start, Free Compendium,
 Item Hacks (Battle Refill or Stockpile), Superjump, Free Growth Items, Full Magatsuhi,
-Skip Intro, Masakado Unlock, and Newborn Clears Compendium.
+Skip Intro, Masakado Unlock, Newborn Clears Compendium, and (optional)
+Autosave After Battle.
 
 **Requirements:** the **Steam** version of the game, on Windows or Steam Deck /
 Linux (via Proton). Close the game before installing. Game Pass / Microsoft Store
@@ -68,6 +69,13 @@ Only the installer differs.
 
    You leave out the switch for anything you want to keep, and add the switch
    for anything you want to skip.
+
+   Autosave After Battle is off unless you ask for it: add
+   `--autosave-slot N` with a save slot from 1 to 20. That slot is overwritten
+   after every battle.
+
+   On Windows, choose **[2] Choose individually** in `install.bat` and enter a
+   slot number at the autosave question.
 
    If the script can't find the game automatically, it will ask you to paste your
    SMT5V folder path.

@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.33**
+**Current version: 5.7.34**
 
 ## Features
 
@@ -37,8 +37,8 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 8. **Free Growth Items** - Gospels, Grimoires, all Sutras, Balms and Incenses
    are sold in the shop from the start of the game for 0 Macca.
 
-9. **Full Magatsuhi** - every battle starts with a full Magatsuhi gauge (it
-   refills as each battle ends). Magatsuhi gain during battle is unchanged.
+9. **Full Magatsuhi** - every battle starts with a full Magatsuhi gauge.
+   Magatsuhi gain during battle is unchanged.
 
 10. **Skip Intro** - no logo or warning screens, no opening movie and no
     "press any button" screen: after a few seconds of black screen the game
@@ -51,6 +51,12 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
     method also empties the Demon Compendium, so the compendium, reverse
     fusion and summoning start fresh. The English carry-over lists on the New
     Game+ screen say so; Reborn and Godborn still keep the compendium.
+
+13. **Autosave After Battle** (off unless chosen) - after every battle, once
+    you are back on the field, the game saves to a save slot you pick at
+    install time (1-20). That slot is overwritten after each battle, so pick
+    one you don't use for anything else. Only offered when choosing patches
+    individually.
 
 ## Requirements
 
@@ -78,7 +84,8 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
    Item Hacks (Battle Refill or Stockpile), Superjump, Free Growth Items, Full Magatsuhi,
-   Skip Intro, Masakado Unlock, Newborn Clears Compendium).
+   Skip Intro, Masakado Unlock, Newborn Clears Compendium, Autosave After
+   Battle).
 
 The installer backs up the original executable as:
 
@@ -248,11 +255,19 @@ held. The uninstallers remove the pak.
 
 ### Full Magatsuhi
 
-Uses the same `SetNextStep` hook as Battle Refill (below). The party's
-Magatsuhi gauge carries over between battles: each battle takes it at the
-start and writes it back at the end. As a battle runs its closing steps, after
-that write-back, the gauge is set to its maximum of 100, so the next battle
-starts with a full gauge.
+Uses the same `SetNextStep` hook as Battle Refill (below). A battle keeps
+its own Magatsuhi gauge for each side, copied from the party's gauge as it
+starts and written back as it ends. On the battle's opening steps the
+player's gauge is set to its maximum of 100.
+
+### Autosave After Battle
+
+When a battle reaches its last step (`SetNextStep` hook), a save is queued.
+It runs from the player's field movement update a couple of seconds later,
+after the battle has written its results back, and calls the game's own save
+routine for the chosen slot. The battle has already stored the player's
+position for saving, so loading the slot returns you to where the battle
+started.
 
 ### Newborn Clears Compendium
 

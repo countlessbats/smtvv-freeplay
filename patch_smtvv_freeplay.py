@@ -48,6 +48,9 @@ Applies quality-of-life patches to the game executable and optional data paks:
      empties the Demon Compendium; the carry-over lists say so (data pak
      built from the player's game files).
 
+ 13. Autosave after battle  -- (optional, --autosave-slot N) the game is
+     saved to slot N (1-20) after every battle, once back on the field.
+
 Executable patches share the same large CC cave in .rdata.
 
 Usage
@@ -75,12 +78,13 @@ import boot_pak  # noqa: E402
 import quest_pak  # noqa: E402
 import newborn  # noqa: E402
 import stockpile  # noqa: E402
+import autosave  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.33"
+MOD_VERSION = "5.7.34"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -356,6 +360,9 @@ def main() -> None:
                         help=argparse.SUPPRESS)   # removed feature; accepted for old scripts
     parser.add_argument("--no-newborn", action="store_true",
                         help="Skip the Newborn Clears Compendium patch")
+    parser.add_argument("--autosave-slot", type=int, metavar="N",
+                        choices=range(autosave.SLOT_MIN, autosave.SLOT_MAX + 1),
+                        help="Save to slot N (1-20) after every battle")
     args = parser.parse_args()
 
     do_essences = not args.no_essences
@@ -371,6 +378,7 @@ def main() -> None:
     do_masakado = not args.no_masakado
     do_shop = not args.no_shop
     do_newborn = not args.no_newborn
+    autosave_slot = args.autosave_slot
 
     game_dir = locate_game_dir(args.game_dir)
     if game_dir is None:
@@ -438,7 +446,8 @@ def main() -> None:
                                 ("Shop", do_shop),
                                 ("Intro", do_intro),
                                 ("Masakado", do_masakado),
-                                ("Newborn", do_newborn)] if on]
+                                ("Newborn", do_newborn),
+                                ("Autosave", autosave_slot is not None)] if on]
     total = len(enabled)
 
     if total == 0:
@@ -698,8 +707,7 @@ def main() -> None:
                 print(f"    WARNING: Stockpile data pak not built - {exc}")
 
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
-                               (do_jump, "Superjump", gameplay_patches.patch_jump),
-                               (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi)):
+                               (do_jump, "Superjump", gameplay_patches.patch_jump)):
         if not on:
             continue
         start = next_cave_off
@@ -711,6 +719,39 @@ def main() -> None:
         patch_num += 1
         print(f"\n  [{patch_num}/{total}] {label}")
         print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
+
+    # ==================================================================
+    # PATCH: Full Magatsuhi / Autosave after battle (section padding caves)
+    # ==================================================================
+    slack = None
+    if do_magatsuhi or autosave_slot is not None:
+        trial = bytearray(data)
+        slack = gameplay_patches.slack_caves(trial)
+        data[:] = trial                   # padding refilled with CC only
+        del trial
+    if do_magatsuhi:
+        try:
+            trial = bytearray(data)       # applied only if the whole patch fits
+            if not gameplay_patches.patch_magatsuhi(trial, slack):
+                raise RuntimeError("AOB mismatch")
+            data[:] = trial
+            del trial
+            patch_num += 1
+            print(f"\n  [{patch_num}/{total}] Full Magatsuhi")
+        except RuntimeError as exc:
+            print(f"\n  WARNING: Full Magatsuhi skipped - {exc}")
+    if autosave_slot is not None:
+        try:
+            trial = bytearray(data)
+            if not autosave.patch_autosave(trial, slack, autosave_slot):
+                raise RuntimeError("AOB mismatch")
+            data[:] = trial
+            del trial
+            patch_num += 1
+            print(f"\n  [{patch_num}/{total}] Autosave after battle")
+            print(f"    Save slot     : {autosave_slot}")
+        except RuntimeError as exc:
+            print(f"\n  WARNING: Autosave skipped - {exc}")
 
     # ==================================================================
     # PATCH: Free Growth Items (data pak only)

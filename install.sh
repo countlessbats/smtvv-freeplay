@@ -15,6 +15,7 @@
 #   --no-refill  --no-jump  --no-shop  --no-magatsuhi  --no-intro  --no-masakado
 #   --no-newborn
 #   --stockpile    (Stockpile instead of Battle Refill)
+#   --autosave-slot N   (save to slot N, 1-20, after every battle; off by default)
 #
 set -euo pipefail
 

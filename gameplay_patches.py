@@ -87,6 +87,48 @@ def _jmp_site(data: bytearray, site_va: int, dest_va: int, length: int,
         data[o + i] = 0x90
 
 
+# Small executable sections whose raw data is mostly unused zero padding;
+# the loader maps their whole raw size, so the padding can hold code.
+SLACK_SECTIONS = (b".rodata", b".xtext")
+IMAGE_BASE = 0x140000000
+
+
+def slack_caves(data: bytearray) -> list[list[int]]:
+    """Zero padding in SLACK_SECTIONS as [file start, file end, va - file]
+    cave entries, filled with CC so _place accepts them."""
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    nsec = struct.unpack_from("<H", data, pe + 6)[0]
+    sec = pe + 24 + struct.unpack_from("<H", data, pe + 20)[0]
+    caves = []
+    for i in range(nsec):
+        h = sec + 40 * i
+        name = bytes(data[h:h + 8]).rstrip(b"\0")
+        vsize, rva, rsize, raw = struct.unpack_from("<IIII", data, h + 8)
+        flags = struct.unpack_from("<I", data, h + 36)[0]
+        if name not in SLACK_SECTIONS or not flags & 0x20000000:
+            continue
+        start = raw + ((vsize + 15) & ~15) + 16
+        end = start
+        while end < raw + rsize and data[end] in (0, 0xCC):
+            end += 1
+        end = (end - 16) & ~15
+        if end - start >= 64:
+            data[start:end] = b"\xCC" * (end - start)
+            caves.append([start, end, IMAGE_BASE + rva - raw])
+    return caves
+
+
+def put_code(data: bytearray, caves: list[list[int]], build) -> int:
+    """Place the code from build(Asm) in the first cave it fits; returns its VA."""
+    for c in caves:
+        code = build(Asm(c[0] + c[2])).build()
+        if c[0] + len(code) <= c[1]:
+            dest = c[0] + c[2]
+            c[0] = _place(data, c[0], c[1], code)
+            return dest
+    raise RuntimeError("code cave too small")
+
+
 # ---------------------------------------------------------------------------
 # Battle consumable refill
 # ---------------------------------------------------------------------------
@@ -155,47 +197,47 @@ def patch_refill(data: bytearray, cave_off: int, cave_end: int) -> int | None:
 # ---------------------------------------------------------------------------
 # Full Magatsuhi: fill the player's Magatsuhi gauge as each battle starts
 # ---------------------------------------------------------------------------
-# The battle Magatsuhi gauge is the party's Uplifting gauge (PartyData
-# m_UpliftingGauge), kept in the save data across battles; its maximum is
-# BPL_BattleCommon:GetUpliftingGaugeMax, a constant 100. A battle takes its
-# copy before its first step and writes it back as it ends, so the gauge is
-# filled on every closing step (END_EVENT onwards), after that write-back,
-# and the next battle starts full.
-SAVE_DATA        = 0x140B253B0   # -> player save data (SetPlayerMAGGauge uses it too)
-SAVE_DATA_ORIG   = bytes.fromhex("4883ec28e8")
-UPLIFT_OFF       = 0x124         # party m_UpliftingGauge
+# A battle keeps its own Magatsuhi gauges in BattleMainWorkBase: an int
+# array, one per side, the player's first (the party Uplifting gauge from the
+# save data is copied in before the first step, and the array is written
+# back when the battle ends). The maximum is BPL_BattleCommon:
+# GetUpliftingGaugeMax, a constant 100. The player's gauge is filled on the
+# opening steps (READY .. START_EVENT), which run once per battle.
+BTL_GAUGES_OFF   = 0x540         # TArray<int32> {data, num, max}
+BTL_GAUGE_CACHE  = 0x550         # player's gauge, refreshed from the array
 UPLIFT_MAX       = 100
-BTL_WORK_LAST    = 0x1549A9A00   # latest BattleMainWorkBase, for inspection
 
 
-def patch_magatsuhi(data: bytearray, cave_off: int, cave_end: int) -> int | None:
+def patch_magatsuhi(data: bytearray, caves: list[list[int]]) -> bool:
     for t in SETNEXTSTEP_THUNKS:
         if data[off(t)] != 0xE9:
-            return None
-    if data[off(SAVE_DATA):off(SAVE_DATA) + len(SAVE_DATA_ORIG)] != SAVE_DATA_ORIG:
-        return None
+            return False
+
+    def u32(v): return struct.pack("<I", v).hex()
 
     # Chains onto whatever the thunk currently jumps to (the Battle Refill
     # or Stockpile cave when that patch is installed).
     for t in SETNEXTSTEP_THUNKS:
         prev = t + 5 + struct.unpack_from("<i", data, off(t) + 1)[0]
-        a = Asm(va(cave_off))
-        a.raw("53")                           # push rbx
-        a.raw("48 83 EC 20")                  # sub rsp, 20h
-        a.raw("48 89 CB")                     # mov rbx, rcx
-        a.call(prev)
-        a._rel("48 89 1D", BTL_WORK_LAST)     # mov [last battle work], rbx
-        a.raw("80 BB").raw(struct.pack("<I", BTL_NEXTSTEP_OFF).hex()).raw("%02x" % BTL_STEP_END_EVENT)
-        a._rel("0F 82", "done")               # jb: only the closing steps
-        a.call(SAVE_DATA).raw("48 85 C0").je("done")
-        a.raw("C7 80").raw(struct.pack("<II", UPLIFT_OFF, UPLIFT_MAX).hex())   # mov dword [rax+124h], 100
-        a.label("done")
-        a.raw("48 83 C4 20 5B C3")
-        code = a.build()
-        dest = va(cave_off)
-        cave_off = _place(data, cave_off, cave_end, code)
-        _jmp_site(data, t, dest, 5)
-    return cave_off
+
+        def hook(a, prev=prev):
+            a.raw("53 48 83 EC 20 48 89 CB")                     # push rbx; sub rsp,20h; mov rbx,rcx
+            a.call(prev)
+            a.raw("0F B6 83" + u32(BTL_NEXTSTEP_OFF))             # movzx eax, byte [rbx+262h]
+            a.raw("83 E8 %02x 83 F8 %02x" % (BTL_STEP_READY, BTL_STEP_START_EVENT - BTL_STEP_READY))
+            a.ja("done")                                          # opening steps only
+            a.raw("48 8B 83" + u32(BTL_GAUGES_OFF))               # mov rax, [rbx+540h]
+            a.raw("48 85 C0").je("done")
+            a.raw("83 BB" + u32(BTL_GAUGES_OFF + 8) + "00")       # cmp dword [rbx+548h], 0
+            a.jle("done")
+            a.raw("C7 00" + u32(UPLIFT_MAX))                      # mov dword [rax], 100
+            a.raw("C7 83" + u32(BTL_GAUGE_CACHE) + u32(UPLIFT_MAX))
+            a.label("done")
+            a.raw("48 83 C4 20 5B C3")
+            return a
+
+        _jmp_site(data, t, put_code(data, caves, hook), 5)
+    return True
 
 
 # ---------------------------------------------------------------------------
