@@ -30,7 +30,10 @@ set /p P2="   Leyline Auto-Heal (full HP/MP on leyline use)? [Y/n]: "
 set /p P3="   Miman Reveal (all miman positions shown on map)? [Y/n]: "
 set /p P4="   NG+ Miracles (unlock NG+ miracles early)? [Y/n]: "
 set /p P5="   Free Compendium (compendium summons cost nothing)? [Y/n]: "
-set /p P6="   Battle Refill (battle items topped up at every battle start)? [Y/n]: "
+echo    Item Hacks: [R] Battle Refill (battle items topped up at every battle start)
+echo                [D] Deep Stock (stack battle items to 99; normal limit per battle)
+echo                [N] Neither
+set /p P6="   Item Hacks? [R/d/n]: "
 set /p P7="   Superjump (hold jump to rise, faster air control)? [Y/n]: "
 set /p P8="   Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)? [Y/n]: "
 set /p P9="   Full Magatsuhi (gauge full at the start of every battle)? [Y/n]: "
@@ -46,6 +49,7 @@ if /i "%P3%"=="n" set "FLAGS=!FLAGS! --no-mimans"
 if /i "%P4%"=="n" set "FLAGS=!FLAGS! --no-miracles"
 if /i "%P5%"=="n" set "FLAGS=!FLAGS! --no-compendium"
 if /i "%P6%"=="n" set "FLAGS=!FLAGS! --no-refill"
+if /i "%P6%"=="d" set "FLAGS=!FLAGS! --deep-stock"
 if /i "%P7%"=="n" set "FLAGS=!FLAGS! --no-jump"
 if /i "%P8%"=="n" set "FLAGS=!FLAGS! --no-shop"
 if /i "%P9%"=="n" set "FLAGS=!FLAGS! --no-magatsuhi"
@@ -155,6 +159,10 @@ if exist "!GAMEDIR!\Project\Content\Paks\pakchunk95_FreeplayMap_P.pak" (
 if exist "!GAMEDIR!\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" (
     echo  Removing carry-over text pak...
     del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" >nul 2>nul
+)
+if exist "!GAMEDIR!\Project\Content\Paks\pakchunk93_FreeplayStock_P.pak" (
+    echo  Removing Deep Stock data pak...
+    del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk93_FreeplayStock_P.pak" >nul 2>nul
 )
 if exist "!BINDIR!\xinput1_3.dll" (
     call :remove_legacy_superjump

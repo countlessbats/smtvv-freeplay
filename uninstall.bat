@@ -66,6 +66,10 @@ if exist "%GAMEDIR%\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" (
     echo  Removing carry-over text pak...
     del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk94_FreeplayNewborn_P.pak" >nul 2>nul
 )
+if exist "%GAMEDIR%\Project\Content\Paks\pakchunk93_FreeplayStock_P.pak" (
+    echo  Removing Deep Stock data pak...
+    del /Q "%GAMEDIR%\Project\Content\Paks\pakchunk93_FreeplayStock_P.pak" >nul 2>nul
+)
 
 if exist "%BINDIR%\xinput1_3.dll" (
     call :remove_legacy_superjump

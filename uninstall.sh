@@ -77,6 +77,12 @@ if [ -f "$NEWBORN_PAK" ]; then
     rm -f "$NEWBORN_PAK"
 fi
 
+STOCK_PAK="$GAMEDIR/Project/Content/Paks/pakchunk93_FreeplayStock_P.pak"
+if [ -f "$STOCK_PAK" ]; then
+    echo "Removing Deep Stock data pak..."
+    rm -f "$STOCK_PAK"
+fi
+
 if [ -f "$BIN/xinput1_3.dll" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
         existing_hash="$(sha256sum "$BIN/xinput1_3.dll" | awk '{print tolower($1)}')"

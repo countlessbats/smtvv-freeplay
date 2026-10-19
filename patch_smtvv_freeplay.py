@@ -20,8 +20,12 @@ Applies quality-of-life patches to the game executable and optional data paks:
      The shared demon-cost formula (used by every compendium price path)
      returns 0.
 
-  6. Battle Refill  -- at the start of every battle, each battle-usable item
+  6. Item Hacks  -- one of:
+     Battle Refill: at the start of every battle, each battle-usable item
      the player has ever obtained is topped up to its carry limit.
+     Deep Stock: battle items stack to 99, but each battle allows only the
+     normal carry limit of each (data pak built from the player's game
+     files).
 
   7. Superjump  -- hold jump to keep rising; faster air movement and
      near-instant turning while airborne.
@@ -75,12 +79,13 @@ import boot_pak  # noqa: E402
 import quest_pak  # noqa: E402
 import map_pak  # noqa: E402
 import newborn  # noqa: E402
+import stock  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.21"
+MOD_VERSION = "5.7.22"
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
 EXE_SUBPATH = os.path.join("Project", "Binaries", "Win64", EXE_NAME)
@@ -322,6 +327,8 @@ def main() -> None:
                         help="Skip the Free Compendium patch")
     parser.add_argument("--no-refill", action="store_true",
                         help="Skip the Battle Refill patch")
+    parser.add_argument("--deep-stock", action="store_true",
+                        help="Install Deep Stock instead of Battle Refill")
     parser.add_argument("--no-masakado", action="store_true",
                         help="Skip the Masakado Unlock patch")
     parser.add_argument("--no-intro", action="store_true",
@@ -343,7 +350,8 @@ def main() -> None:
     do_mimans   = not args.no_mimans
     do_miracles = not args.no_miracles
     do_compendium = not args.no_compendium
-    do_refill = not args.no_refill
+    do_deep = args.deep_stock
+    do_refill = not args.no_refill and not do_deep
     do_jump = not args.no_jump
     do_magatsuhi = not args.no_magatsuhi
     do_intro = not args.no_intro
@@ -376,7 +384,7 @@ def main() -> None:
     # below only if the miracles patch is enabled and succeeds.
     # ------------------------------------------------------------------
     for pak in (MIRACLE_PAK, shop_pak.SHOP_PAK, boot_pak.BOOT_PAK, quest_pak.QUEST_PAK,
-                map_pak.MAP_PAK, newborn.NEWBORN_PAK):
+                map_pak.MAP_PAK, newborn.NEWBORN_PAK, stock.STOCK_PAK):
         stale_pak = os.path.join(game_dir, PAKS_SUBPATH, pak)
         if os.path.isfile(stale_pak):
             print(f"  Removing previous {pak} (rebuilt if selected)")
@@ -412,6 +420,7 @@ def main() -> None:
                                 ("Miracles", do_miracles),
                                 ("Compendium", do_compendium),
                                 ("Refill", do_refill),
+                                ("DeepStock", do_deep),
                                 ("Jump", do_jump),
                                 ("Magatsuhi", do_magatsuhi),
                                 ("Shop", do_shop),
@@ -639,6 +648,33 @@ def main() -> None:
     # PATCH: Battle Refill / Superjump / Full Magatsuhi
     # ==================================================================
     cave_end = cave_off + cave_len
+    # ==================================================================
+    # PATCH: Deep Stock (exe + ItemTable carry limits)
+    # ==================================================================
+    deep_ok = False
+    deep_table = None
+    if do_deep:
+        repak = find_repak()
+        try:
+            if repak is None:
+                raise RuntimeError("bundled repak tool not found")
+            item_asset, item_exp = stock.read_item_table(game_dir, PAKS_SUBPATH, SOURCE_PAK,
+                                                         repak, run_repak)
+            deep_exp, deep_orig = stock.edit_item_max(item_exp)
+            start = next_cave_off
+            result = stock.patch_deep_stock(data, next_cave_off, cave_end, deep_orig)
+            if result is None:
+                raise RuntimeError("AOB mismatch")
+            next_cave_off = result
+            deep_ok = True
+            deep_table = (item_asset, deep_exp)
+            patch_num += 1
+            print(f"\n  [{patch_num}/{total}] Deep Stock")
+            print(f"    Code cave     : 0x{start:08X}  ({next_cave_off - start} bytes)")
+            print(f"    Battle items  : {len(deep_orig)} raised to {stock.STOCK_MAX}")
+        except RuntimeError as exc:
+            print(f"\n  WARNING: Deep Stock skipped - {exc}")
+
     for on, label, builder in ((do_refill, "Battle Refill", gameplay_patches.patch_refill),
                                (do_jump, "Superjump", gameplay_patches.patch_jump),
                                (do_magatsuhi, "Full Magatsuhi", gameplay_patches.patch_magatsuhi)):
@@ -664,10 +700,18 @@ def main() -> None:
         try:
             if repak is None:
                 raise RuntimeError("bundled repak tool not found")
-            shop_pak.build_shop_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak)
+            shop_pak.build_shop_pak(game_dir, PAKS_SUBPATH, SOURCE_PAK, repak, run_repak,
+                                    deep_stock=deep_ok)
             print(f"    Data pak      : {shop_pak.SHOP_PAK}")
         except RuntimeError as exc:
             print(f"    WARNING: shop data pak not built - {exc}")
+
+    if deep_ok and not do_shop:
+        try:
+            stock.build_stock_pak(game_dir, PAKS_SUBPATH, *deep_table, find_repak(), run_repak)
+            print(f"    Deep Stock pak: {stock.STOCK_PAK}")
+        except RuntimeError as exc:
+            print(f"    WARNING: Deep Stock data pak not built - {exc}")
 
     # ==================================================================
     # PATCH: Skip Intro (data pak + title refocus)

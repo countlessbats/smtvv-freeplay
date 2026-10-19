@@ -2,8 +2,8 @@
 
 A quality-of-life patch bundle for *Shin Megami Tensei V: Vengeance*: Reusable
 Essences, Leyline Auto-Heal, Miman Reveal, NG+ Miracles From Start, Free Compendium,
-Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock,
-Timed Quest Markers, and Newborn Clears Compendium.
+Item Hacks (Battle Refill or Deep Stock), Superjump, Free Growth Items, Full Magatsuhi,
+Skip Intro, Masakado Unlock, Timed Quest Markers, and Newborn Clears Compendium.
 
 **Requirements:** the **Steam** version of the game, on Windows or Steam Deck /
 Linux (via Proton). Close the game before installing. Game Pass / Microsoft Store
@@ -40,8 +40,9 @@ Only the installer differs.
    ./install.sh
    ```
 
-   With no switches, this installs all thirteen features. To install only some of
-   them, add a skip-switch for each feature you do **not** want:
+   With no switches, this installs all thirteen features, with Battle Refill as
+   the Item Hack; add `--deep-stock` to get Deep Stock instead. To install only
+   some of them, add a skip-switch for each feature you do **not** want:
 
    ```text
    --no-essences

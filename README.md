@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.21**
+**Current version: 5.7.22**
 
 ## Features
 
@@ -22,8 +22,12 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 5. **Free Compendium** - summoning a registered demon from the compendium
    costs no Macca.
 
-6. **Battle Refill** - at the start of every battle, each battle-usable item
-   you have ever obtained is topped back up to its carry limit.
+6. **Item Hacks** - choose one:
+   - **Battle Refill** - at the start of every battle, each battle-usable item
+     you have ever obtained is topped back up to its carry limit.
+   - **Deep Stock** - battle items stack to 99, but each battle still lets you
+     use only the normal carry limit of each (for example 5 Somas). Items used
+     in battle come out of your stock.
 
 7. **Superjump** - hold jump (Space, or A/B on a controller) to keep rising;
    release to fall. Pressing jump in mid-air starts rising again. While
@@ -79,8 +83,8 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 
 3. Choose all patches, or pick individual ones (Reusable Essences,
    Leyline Auto-Heal, Miman Reveal, NG+ Miracles, Free Compendium,
-   Battle Refill, Superjump, Free Growth Items, Full Magatsuhi, Skip Intro, Masakado Unlock,
-   Timed Quest Markers, Newborn Clears Compendium).
+   Item Hacks (Battle Refill or Deep Stock), Superjump, Free Growth Items, Full Magatsuhi,
+   Skip Intro, Masakado Unlock, Timed Quest Markers, Newborn Clears Compendium).
 
 The installer backs up the original executable as:
 
@@ -107,8 +111,9 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all thirteen features. To install only some of them,
-add a skip-switch for each feature you do **not** want:
+With no switches, it installs all thirteen features, with Battle Refill as the
+Item Hack; add `--deep-stock` to get Deep Stock instead. To install only some of
+them, add a skip-switch for each feature you do **not** want:
 
 ```text
 --no-essences
@@ -273,6 +278,16 @@ starts. A small override pak built from your own `pakchunk0` updates the
 English carry-over lists: Newborn no longer lists the Demon Compendium and states
 that it is not carried over, and Reborn, whose list builds on Newborn's, lists it. Other
 languages show the original lists. The uninstallers remove the pak.
+
+### Deep Stock
+
+A small override pak built from your own `pakchunk0` raises the carry limit of
+every battle-usable item below 99 to 99 (with Free Growth Items, its ItemTable
+carries both changes). When a battle enters its first step, the stock above each
+item's original limit is set aside; until the battle ends, the item count the
+game reports is the real count minus that amount, so the battle offers at most
+the original limit. Using an item takes it from the real stock. The uninstallers
+remove the pak.
 
 ### Battle Refill
 
