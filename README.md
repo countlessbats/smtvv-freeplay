@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.35**
+**Current version: 5.7.36**
 
 ## Features
 
@@ -115,35 +115,11 @@ chmod +x install.sh
 ./install.sh
 ```
 
-With no switches, it installs all twelve features, with Battle Refill as the
-Item Hack; add `--stockpile` to get Stockpile instead. To install only some of
-them, add a skip-switch for each feature you do **not** want:
-
-```text
---no-essences
---no-heal
---no-mimans
---no-miracles
---no-compendium
---no-refill
---no-jump
---no-shop
---no-magatsuhi
---no-intro
---no-masakado
---no-newborn
-```
-
-For example, to install only Reusable Essences and Miman Reveal, skipping
-Leyline Auto-Heal and NG+ Miracles:
-
-```bash
-./install.sh --no-heal --no-miracles
-```
-
-You leave out the switch for anything you want to keep, and add the switch for
-anything you want to skip. If the script can't find the game automatically, it
-will ask you to paste your SMT5V folder path.
+It asks about each mod in turn, the same questions as `install.bat`: Y to
+install a mod, Enter to skip it, and a save slot (1-20) for Autosave After
+Battle. Run it again later to add or remove mods; it shows which ones are
+installed and offers to uninstall all of them. If it can't find the game
+automatically, it asks you to paste your SMT5V folder path.
 
 Uninstall with `./uninstall.sh`. (`python3`, used by the patcher, ships with
 Desktop Mode.)

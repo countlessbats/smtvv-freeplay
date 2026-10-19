@@ -24,7 +24,12 @@ find_game() {
     return 1
 }
 
-GAMEDIR="$(find_game || true)"
+# Optional argument: the SMT5V folder (skips the automatic search).
+GAMEDIR="${1:-}"
+GAMEDIR="${GAMEDIR%/}"
+if [ -z "$GAMEDIR" ]; then
+    GAMEDIR="$(find_game || true)"
+fi
 if [ -z "${GAMEDIR:-}" ]; then
     read -r -p "SMT5V folder: " GAMEDIR
     GAMEDIR="${GAMEDIR/#\~/$HOME}"

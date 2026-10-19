@@ -44,40 +44,10 @@ Only the installer differs.
    ./install.sh
    ```
 
-   With no switches, this installs all twelve features, with Battle Refill as
-   the Item Hack; add `--stockpile` to get Stockpile instead. To install only
-   some of them, add a skip-switch for each feature you do **not** want:
-
-   ```text
-   --no-essences
-   --no-heal
-   --no-mimans
-   --no-miracles
-   --no-compendium
-   --no-refill
-   --no-jump
-   --no-shop
-   --no-magatsuhi
-   --no-intro
-   --no-masakado
-   --no-newborn
-   ```
-
-   For example, to install **only Reusable Essences and Miman Reveal** (skipping
-   Leyline Auto-Heal and NG+ Miracles):
-
-   ```bash
-   ./install.sh --no-heal --no-miracles
-   ```
-
-   You leave out the switch for anything you want to keep, and add the switch
-   for anything you want to skip.
-
-   Autosave After Battle is off unless you ask for it: add
-   `--autosave-slot N` with a save slot from 1 to 20. That slot is overwritten
-   after every battle.
-
-   On Windows, `install.bat` asks for the slot.
+   It asks about each mod in turn: **Y** to install it, Enter to skip it. For
+   Autosave After Battle, type the save slot (1-20) it should use. Run it again
+   later to add or remove mods; it shows which ones are installed and offers to
+   uninstall all of them.
 
    If the script can't find the game automatically, it will ask you to paste your
    SMT5V folder path.
