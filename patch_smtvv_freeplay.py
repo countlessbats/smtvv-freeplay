@@ -84,7 +84,7 @@ import autosave  # noqa: E402
 # Constants
 # ---------------------------------------------------------------------------
 
-MOD_VERSION = "5.7.40"
+MOD_VERSION = "5.7.41"
 FEATURES_FILE = "Freeplay.features"   # installed features, kept next to the executable
 
 EXE_NAME = "SMT5V-Win64-Shipping.exe"
@@ -742,15 +742,26 @@ def main() -> None:
         except RuntimeError as exc:
             print(f"\n  WARNING: Full Magatsuhi skipped - {exc}")
     if autosave_slot is not None:
+        area_labels = None
+        try:
+            repak = find_repak()
+            if repak is None:
+                raise RuntimeError("bundled repak tool not found")
+            area_labels = autosave.read_area_labels(game_dir, PAKS_SUBPATH, SOURCE_PAK,
+                                                    repak, run_repak)
+        except Exception as exc:
+            print(f"\n  NOTE: Autosave location names unavailable - {exc}")
         try:
             trial = bytearray(data)
-            if not autosave.patch_autosave(trial, slack, autosave_slot):
+            if not autosave.patch_autosave(trial, slack, autosave_slot, area_labels):
                 raise RuntimeError("AOB mismatch")
             data[:] = trial
             del trial
             patch_num += 1
             print(f"\n  [{patch_num}/{total}] Autosave after battle")
             print(f"    Save slot     : {autosave_slot}")
+            if area_labels:
+                print(f"    Location names: {len(area_labels)}")
         except RuntimeError as exc:
             print(f"\n  WARNING: Autosave skipped - {exc}")
 

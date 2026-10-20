@@ -9,6 +9,7 @@ spot the battle started from.
 
 from __future__ import annotations
 
+import os
 import struct
 
 from gameplay_patches import BTL_NEXTSTEP_OFF, SETNEXTSTEP_THUNKS, _jmp_site, off, put_code
@@ -50,8 +51,92 @@ SAVE_HEADERS      = 0x1443005B0     # load-menu header entries, 0x70 bytes each
 SAVE_HEADER_COUNT = 0x1443005B8
 HEADER_LANGUAGE   = 0x68
 
+# Location: the load menu shows the row of the MapAreaName table named by the
+# field's current area label (BP_MapUICtrl.NowAreaNameData), reached through
+# the game instance (ProjectGameInstance_C.m_MapUICommon).
+HDR_LOCATION      = 0x60
+GAME_INSTANCE     = 0x140B29520     # returns the game instance
+GI_MAP_UI         = 0x1EF0
+MAP_UI_AREA_LABEL = 0x290           # FName {index, number}
+FNAME_BLOCKS      = 0x1443BE310     # FNamePool blocks; entry = block + 2 * offset
+AREA_TABLE        = "Project/Content/Blueprints/Gamedata/BinTable/Map/MapAreaName"
+HASH_SECTION      = b".text1"       # readable data section with unused zero padding
+FNV_BASIS, FNV_PRIME = 0x811C9DC5, 0x01000193
 
-def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
+
+def label_hash(name: str, num: int, salt: int) -> int:
+    """16-bit hash of an FName (lower-cased text, then its number), as the
+    location code computes it."""
+    h = FNV_BASIS ^ salt
+    for c in name.encode("latin-1").lower():
+        h = ((h ^ c) * FNV_PRIME) & 0xFFFFFFFF
+    h ^= num
+    return (h ^ (h >> 16)) & 0xFFFF
+
+
+def area_hashes(labels: list[tuple[str, int]]) -> tuple[int, list[int]]:
+    """A salt under which every row label hashes differently, and the hashes."""
+    for salt in range(1, 1 << 16):
+        hs = [label_hash(n, k, salt) for n, k in labels]
+        if len(set(hs)) == len(hs):
+            return salt, hs
+    raise RuntimeError("no collision-free hash for the area labels")
+
+
+def _slack_data(data: bytearray, size: int) -> int:
+    """Place size zero bytes' worth of room in HASH_SECTION's padding; returns
+    its file offset (the caller writes the data)."""
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    nsec = struct.unpack_from("<H", data, pe + 6)[0]
+    sec = pe + 24 + struct.unpack_from("<H", data, pe + 20)[0]
+    for i in range(nsec):
+        h = sec + 40 * i
+        if bytes(data[h:h + 8]).rstrip(b"\0") != HASH_SECTION:
+            continue
+        vsize, rva, rsize, raw = struct.unpack_from("<IIII", data, h + 8)
+        start = raw + ((vsize + 15) & ~15) + 16
+        end = start
+        while end < raw + rsize and data[end] == 0:
+            end += 1
+        if start + size <= end - 16:
+            return start
+    raise RuntimeError("no room for the location table")
+
+
+def _va(data: bytearray, file_off: int) -> int:
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    nsec = struct.unpack_from("<H", data, pe + 6)[0]
+    sec = pe + 24 + struct.unpack_from("<H", data, pe + 20)[0]
+    for i in range(nsec):
+        vsize, rva, rsize, raw = struct.unpack_from("<IIII", data, sec + 40 * i + 8)
+        if raw <= file_off < raw + rsize:
+            return 0x140000000 + rva + file_off - raw
+    raise RuntimeError("offset outside the image")
+
+
+def read_area_labels(game_dir: str, paks_subpath: str, source_pak: str,
+                     repak: str, run_repak) -> list[tuple[str, int]]:
+    """MapAreaName row labels, in row order, as (name, FName number)."""
+    from ue_asset import Package
+    src = os.path.join(game_dir, paks_subpath, source_pak)
+    if not os.path.isfile(src):
+        raise RuntimeError(f"{source_pak} not found")
+    pkg = Package(run_repak(repak, "get", src, AREA_TABLE + ".uasset"),
+                  run_repak(repak, "get", src, AREA_TABLE + ".uexp"))
+    e, names = bytes(pkg.e), pkg.names
+    tag = struct.pack("<iiii", names.index("MessageLabel"), 0, names.index("NameProperty"), 0)
+    labels, i = [], e.find(tag)
+    while i >= 0:
+        v, num = struct.unpack_from("<ii", e, i + 25)
+        labels.append((names[v], num))
+        i = e.find(tag, i + 1)
+    if not labels or labels[0][0] != "MapAreaName_Dummy":
+        raise RuntimeError("unexpected MapAreaName layout")
+    return labels
+
+
+def patch_autosave(data: bytearray, caves: list[list[int]], slot: int,
+                   area_labels: list[tuple[str, int]] | None = None) -> bool:
     if not SLOT_MIN <= slot <= SLOT_MAX:
         raise ValueError(f"save slot must be {SLOT_MIN}-{SLOT_MAX}")
     for t in SETNEXTSTEP_THUNKS:
@@ -105,11 +190,56 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
 
     _jmp_site(data, FIELD_TICK_SITE, put_code(data, caves, tick_hook), 5, opcode=0xE8)
 
+    # Location: hash the field's current area label and find it among the
+    # MapAreaName row hashes; no match leaves the location at 0 ("Unused").
+    loc_fn = None
+    if area_labels:
+        salt, hashes = area_hashes(area_labels)
+        tbl = _slack_data(data, 2 * len(hashes))
+        tbl_va = _va(data, tbl)
+
+        def location(a):
+            a.raw("56 48 83 EC 20")                      # push rsi; sub rsp, 20h
+            a.call(GAME_INSTANCE)
+            a.raw("48 85 C0").je("done")
+            a.raw("48 8B 80" + struct.pack("<I", GI_MAP_UI).hex())
+            a.raw("48 85 C0").je("done")
+            a.raw("8B 88" + struct.pack("<I", MAP_UI_AREA_LABEL).hex())         # ecx = index
+            a.raw("44 8B 80" + struct.pack("<I", MAP_UI_AREA_LABEL + 4).hex())  # r8d = number
+            a.raw("89 CA C1 EA 10")                      # edx = block
+            a._rel("4C 8D 0D", FNAME_BLOCKS)
+            a.raw("4D 8B 0C D1 4D 85 C9").je("done")
+            a.raw("0F B7 C9 4D 8D 0C 49")                # r9 = entry
+            a.raw("41 0F B7 09 F6 C1 01").jne("done")  # wide names never match
+            a.raw("C1 E9 06 49 83 C1 02")                # ecx = length; r9 = text
+            a.raw("B8" + struct.pack("<I", FNV_BASIS ^ salt).hex())
+            a.label("chr")
+            a.raw("85 C9").j8("74", "hashed")
+            a.raw("41 0F B6 11 8D 72 BF 83 FE 19").j8("77", "lower")
+            a.raw("83 CA 20")
+            a.label("lower")
+            a.raw("31 D0 69 C0" + struct.pack("<I", FNV_PRIME).hex())
+            a.raw("49 FF C1 FF C9").j8("EB", "chr")
+            a.label("hashed")
+            a.raw("44 31 C0 89 C2 C1 EA 10 31 D0")       # ax = hash
+            a._rel("4C 8D 0D", tbl_va)
+            a.raw("B9" + struct.pack("<I", len(hashes)).hex())
+            a.label("row")
+            a.raw("FF C9").j8("78", "done")
+            a.raw("66 41 3B 04 49").j8("75", "row")
+            a.raw("89 4B %02X" % HDR_LOCATION)
+            a.label("done")
+            a.raw("48 83 C4 20 5E C3")                   # add rsp, 20h; pop rsi; ret
+            return a
+
+        loc_fn = put_code(data, caves, location)
+        data[tbl:tbl + 2 * len(hashes)] = struct.pack("<%dH" % len(hashes), *hashes)
+
     # Save object build: while the autosave runs, fill the header the way a
     # menu save does.
     def build_hook(a):
         a._rel("8A 05", AUTOSAVE_BUSY)                   # mov al, [busy]
-        a.raw("84 C0").jne("auto")
+        a.raw("84 C0").j8("75", "auto")
         a.jmp(SAVE_BUILD_FN)
         a.label("auto")
         a.raw("53 48 83 EC 20")                          # push rbx; sub rsp, 20h
@@ -123,17 +253,19 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
         a.raw("31 C0")                                   # xor eax, eax
         a._rel("48 8B 15", SAVE_HEADERS)                 # mov rdx, [headers]
         a._rel("44 8B 05", SAVE_HEADER_COUNT)            # mov r8d, [count]
-        a.raw("48 85 D2").je("store")
+        a.raw("48 85 D2").j8("74", "store")
         a.label("scan")
-        a.raw("45 85 C0").jle("store")
-        a.raw("38 4A %02X" % HEADER_LANGUAGE).jne("next")  # cmp [rdx+68h], cl
+        a.raw("45 85 C0").j8("7E", "store")
+        a.raw("38 4A %02X" % HEADER_LANGUAGE).j8("75", "next")  # cmp [rdx+68h], cl
         a.raw("0F B7 42 %02X" % (HEADER_LANGUAGE + 1))   # movzx eax, word [rdx+69h]
-        a.jmp("store")
+        a.j8("EB", "store")
         a.label("next")
         a.raw("48 83 C2 70 41 FF C8")                    # add rdx, 70h; dec r8d
-        a.jmp("scan")
+        a.j8("EB", "scan")
         a.label("store")
         a.raw("66 89 43 %02X" % (HDR_LANGUAGE + 1))      # mov [rbx+76h], ax
+        if loc_fn:
+            a.call(loc_fn)
         a.raw("48 83 C4 20 5B C3")                       # add rsp, 20h; pop rbx; ret
         return a
 

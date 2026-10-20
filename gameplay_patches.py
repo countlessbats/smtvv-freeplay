@@ -22,13 +22,14 @@ def off(v: int) -> int:
 
 
 class Asm:
-    """Tiny x64 emitter: raw bytes plus rel32 fixups to labels or VAs."""
+    """Tiny x64 emitter: raw bytes plus rel32 (and rel8) fixups to labels or VAs."""
 
     def __init__(self, base_va: int):
         self.base = base_va
         self.b = bytearray()
         self.labels: dict[str, int] = {}
         self.fix: list[tuple[int, str | int]] = []
+        self.fix8: list[tuple[int, str]] = []
 
     def raw(self, hexstr: str) -> "Asm":
         self.b += bytes.fromhex(hexstr.replace(" ", ""))
@@ -51,6 +52,13 @@ class Asm:
     def jle(self, t):  return self._rel("0F8E", t)
     def ja(self, t):   return self._rel("0F87", t)
 
+    def j8(self, opcode: str, label: str) -> "Asm":
+        """Short jump (one opcode byte, rel8) to a label."""
+        self.raw(opcode)
+        self.fix8.append((len(self.b), label))
+        self.b += b"\0"
+        return self
+
     def rip(self, opcode: str, label: str) -> "Asm":
         """Instruction ending in a RIP-relative disp32 to a data label."""
         return self._rel(opcode, label)
@@ -66,6 +74,8 @@ class Asm:
         for pos, t in self.fix:
             tgt = self.base + self.labels[t] if isinstance(t, str) else t
             struct.pack_into("<i", self.b, pos, tgt - (self.base + pos + 4))
+        for pos, t in self.fix8:
+            struct.pack_into("<b", self.b, pos, self.labels[t] - (pos + 1))
         return bytes(self.b)
 
 
