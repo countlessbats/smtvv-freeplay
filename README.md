@@ -32,7 +32,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
 7. **Superjump** - hold jump (Space, or A/B on a controller) to keep rising;
    release to fall. Pressing jump in mid-air starts rising again. While
-   airborne you move 50% faster and turn almost instantly.
+   airborne you move 50% faster and turn almost instantly. You can fly over
+   story triggers, which are not always marked on the map; if events aren't
+   triggering after flying over terrain, backtrack and walk.
 
 8. **Free Growth Items** - Gospels, Grimoires, all Sutras, Balms and Incenses
    are sold in the shop from the start of the game for 0 Macca.
@@ -42,7 +44,9 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
 10. **Skip Intro** - no logo or warning screens, no opening movie and no
     "press any button" screen: after a few seconds of black screen the game
-    opens straight to the title menu.
+    opens straight to the title menu. Controller input sometimes stalls on
+    launch; tab out and back in, or open and close the Steam overlay, to
+    restore control.
 
 11. **Masakado Unlock** - Masakado offers his powered-up fight without the
     Kiou Sword.

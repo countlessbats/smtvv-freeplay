@@ -112,9 +112,11 @@ call :ask miracles "NG+ Miracles (unlock NG+ miracles early)"
 call :ask compendium "Free Compendium (compendium summons cost nothing)"
 call :ask_items
 call :ask jump "Superjump (hold jump to rise, faster air control)"
+if defined SEL_jump call :jump_warning
 call :ask shop "Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)"
 call :ask magatsuhi "Full Magatsuhi (gauge full at the start of every battle)"
 call :ask intro "Skip Intro (no logos or opening movie; boot to title menu)"
+if defined SEL_intro call :intro_warning
 call :ask masakado "Masakado Unlock (powered-up Masakado fight without the Kiou Sword)"
 call :ask newborn "Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)"
 call :ask_autosave
@@ -246,7 +248,38 @@ echo.
 echo   To change or remove mods, run this installer again.
 echo  ============================================================
 echo.
+set "WARNED="
+%SystemRoot%\System32\findstr.exe /x /c:"jump=1" "%BINDIR%\Freeplay.features" >nul 2>&1
+if not errorlevel 1 (
+    call :jump_warning
+    set "WARNED=1"
+)
+%SystemRoot%\System32\findstr.exe /x /c:"intro=1" "%BINDIR%\Freeplay.features" >nul 2>&1
+if not errorlevel 1 (
+    call :intro_warning
+    set "WARNED=1"
+)
+if defined WARNED echo.
 pause
+exit /b 0
+
+:jump_warning
+echo.
+echo    Superjump:
+echo    This permits you to fly over triggers that the game requires to advance,
+echo    which are not always marked on the map. If events aren't triggering after
+echo    flying over terrain, backtrack and walk; you probably missed an earlier
+echo    event.
+echo.
+exit /b 0
+
+:intro_warning
+echo.
+echo    Skip Intro:
+echo    WARNING: This component sometimes causes controller inputs to stall on
+echo    launch. If this happens, simply tab out and in or open and close the Steam
+echo    overlay to restore control.
+echo.
 exit /b 0
 
 :uninstall

@@ -86,6 +86,24 @@ BIN="$GAMEDIR/Project/Binaries/Win64"
 PAKS="$GAMEDIR/Project/Content/Paks"
 STATE="$BIN/Freeplay.features"
 
+jump_warning() {
+    echo
+    echo "  Superjump:"
+    echo "  This permits you to fly over triggers that the game requires to advance,"
+    echo "  which are not always marked on the map. If events aren't triggering after"
+    echo "  flying over terrain, backtrack and walk; you probably missed an earlier"
+    echo "  event."
+    echo
+}
+intro_warning() {
+    echo
+    echo "  Skip Intro:"
+    echo "  WARNING: This component sometimes causes controller inputs to stall on"
+    echo "  launch. If this happens, simply tab out and in or open and close the Steam"
+    echo "  overlay to restore control."
+    echo
+}
+
 PY="$(command -v python3 || true)"
 if [ -z "$PY" ]; then
     echo "ERROR: python3 not found. In Desktop Mode it is normally available;"
@@ -230,7 +248,11 @@ if [ ${#PATCH_FLAGS[@]} -eq 0 ]; then
     SEL_AUTOSAVE=""
     for k in essences heal mimans miracles compendium; do ask "$k"; done
     ask_items
-    for k in jump shop magatsuhi intro masakado newborn; do ask "$k"; done
+    ask jump
+    if [ -n "${SEL[jump]:-}" ]; then jump_warning; fi
+    for k in shop magatsuhi intro; do ask "$k"; done
+    if [ -n "${SEL[intro]:-}" ]; then intro_warning; fi
+    for k in masakado newborn; do ask "$k"; done
     ask_autosave
 
     NSEL=0
@@ -292,3 +314,7 @@ fi
 echo
 echo "Done. Launch the game through Steam as usual."
 echo "To change or remove mods, run ./install.sh again."
+WARNED=""
+if grep -qx "jump=1" "$STATE" 2>/dev/null; then jump_warning; WARNED=1; fi
+if grep -qx "intro=1" "$STATE" 2>/dev/null; then intro_warning; WARNED=1; fi
+if [ -n "$WARNED" ]; then read -r -p "Press Enter to continue..." _ || true; fi
