@@ -40,6 +40,13 @@ AUTOSAVE_DELAY   = 120
 
 SLOT_MIN, SLOT_MAX = 1, 20
 
+# Inspection: copies of the finished save object as it is written, from the
+# direct save (autosave) and from the save menu's worker.
+SAVE_WRITE_FN    = 0x140B708A0
+CAPTURE_SITES    = ((0x140B70352, bytes.fromhex("e849050000"), 0x1549A9100, 0x1549A9A20),
+                    (0x140B71619, bytes.fromhex("e882f2ffff"), 0x1549A9500, 0x1549A9A28))
+CAPTURE_QWORDS   = 0x80
+
 
 def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
     if not SLOT_MIN <= slot <= SLOT_MAX:
@@ -105,4 +112,21 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
         return a
 
     _jmp_site(data, SAVE_BUILD_SITE, put_code(data, caves, build_hook), 5, opcode=0xE8)
+
+    for site, orig, buf, ptr in CAPTURE_SITES:
+        if bytes(data[off(site):off(site) + 5]) != orig:
+            continue
+
+        def capture_hook(a, buf=buf, ptr=ptr):
+            a.raw("56 57 51")                            # push rsi, rdi, rcx
+            a._rel("48 89 0D", ptr)                      # mov [ptr], rcx (save object)
+            a.raw("48 89 CE")                            # mov rsi, rcx
+            a._rel("48 8D 3D", buf)                      # lea rdi, [buf]
+            a.raw("B9" + struct.pack("<I", CAPTURE_QWORDS).hex())
+            a.raw("FC F3 48 A5")                         # cld; rep movsq
+            a.raw("59 5F 5E")
+            a.jmp(SAVE_WRITE_FN)
+            return a
+
+        _jmp_site(data, site, put_code(data, caves, capture_hook), 5, opcode=0xE8)
     return True
