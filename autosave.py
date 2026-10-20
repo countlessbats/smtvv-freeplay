@@ -40,11 +40,16 @@ AUTOSAVE_DELAY   = 120
 
 SLOT_MIN, SLOT_MAX = 1, 20
 
-# Inspection: copies of the finished save object as it is written, from the
-# direct save (autosave) and from the save menu's worker.
+# Inspection: copies of the finished save object as it is written: one from
+# the direct save (autosave), one from every call of the writer, with the
+# caller's return address and a call count.
 SAVE_WRITE_FN    = 0x140B708A0
-CAPTURE_SITES    = ((0x140B70352, bytes.fromhex("e849050000"), 0x1549A9100, 0x1549A9A20),
-                    (0x140B71619, bytes.fromhex("e882f2ffff"), 0x1549A9500, 0x1549A9A28))
+SAVE_WRITE_ORIG  = bytes.fromhex("4055535657")   # push rbp; push rbx; push rsi; push rdi
+CAPTURE_SITES    = ((0x140B70352, bytes.fromhex("e849050000"), 0x1549A9100, 0x1549A9A20),)
+WRITE_BUF        = 0x1549A9500
+WRITE_PTR        = 0x1549A9A28
+WRITE_RET        = 0x1549A9A30
+WRITE_COUNT      = 0x1549A9A38
 CAPTURE_QWORDS   = 0x80
 
 
@@ -129,4 +134,22 @@ def patch_autosave(data: bytearray, caves: list[list[int]], slot: int) -> bool:
             return a
 
         _jmp_site(data, site, put_code(data, caves, capture_hook), 5, opcode=0xE8)
+
+    if bytes(data[off(SAVE_WRITE_FN):off(SAVE_WRITE_FN) + 5]) == SAVE_WRITE_ORIG:
+        def write_hook(a):
+            a.raw("56 57 51")                            # push rsi, rdi, rcx
+            a.raw("48 8B 44 24 18")                      # mov rax, [rsp+18h] (return address)
+            a._rel("48 89 05", WRITE_RET)
+            a._rel("48 89 0D", WRITE_PTR)
+            a.raw("48 89 CE")                            # mov rsi, rcx
+            a._rel("48 8D 3D", WRITE_BUF)
+            a.raw("B9" + struct.pack("<I", CAPTURE_QWORDS).hex())
+            a.raw("FC F3 48 A5")                         # cld; rep movsq
+            a.raw("59 5F 5E")
+            a._rel("FF 05", WRITE_COUNT)                 # inc dword [count]
+            a.raw(SAVE_WRITE_ORIG.hex())
+            a.jmp(SAVE_WRITE_FN + 5)
+            return a
+
+        _jmp_site(data, SAVE_WRITE_FN, put_code(data, caves, write_hook), 5)
     return True
