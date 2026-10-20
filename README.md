@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.39**
+**Current version: 5.7.40**
 
 ## Features
 
@@ -246,7 +246,9 @@ It runs from the player's field movement update a couple of seconds later,
 after the battle has written its results back, and calls the game's own save
 routine for the chosen slot. The battle has already stored the player's
 position for saving, so loading the slot returns you to where the battle
-started.
+started. While it saves, the header the load menu reads is filled the way a
+menu save fills it: the player name, and the current text language, which the
+load menu checks before loading.
 
 ### Newborn Clears Compendium
 
