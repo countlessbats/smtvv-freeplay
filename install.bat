@@ -320,18 +320,30 @@ if exist "!BINDIR!\xinput1_3.dll" if not defined HOWNED (
     exit /b 0
 )
 echo  Installing DualSense Haptics...
-:: Settings and logs in the folder are kept; unchanged files are skipped.
-"%SystemRoot%\System32\robocopy.exe" "!HSRC!\DualSenseHaptics" "!BINDIR!\DualSenseHaptics" /E /R:2 /W:1 /NJH /NJS /NFL /NDL /NP >nul
+call :haptics_stop
+:: Settings and logs in the folder are kept; unchanged files are skipped. The
+:: loader's hash record is written last, so it always names an installed loader.
+"%SystemRoot%\System32\robocopy.exe" "!HSRC!\DualSenseHaptics" "!BINDIR!\DualSenseHaptics" /E /XF loader.sha256 /R:2 /W:1 /NJH /NJS /NFL /NDL /NP >nul
 if errorlevel 8 goto :haptics_failed
 copy /Y "!HSRC!\xinput1_3.dll" "!BINDIR!\xinput1_3.dll" >nul
 if errorlevel 1 goto :haptics_failed
+copy /Y "!HSRC!\DualSenseHaptics\loader.sha256" "!BINDIR!\DualSenseHaptics\loader.sha256" >nul
 >>"!STATE!" echo haptics=1
 echo   The haptics panel is DualSenseHaptics\SMTVHaptics.exe in the game's
 echo   Project\Binaries\Win64 folder.
 exit /b 0
 :haptics_failed
-echo  ERROR: DualSense Haptics could not be copied. Quit the game and the
-echo         haptics panel, then run this installer again.
+:: An earlier haptics install stays in place and recorded.
+if exist "!BINDIR!\DualSenseHaptics\loader.sha256" >>"!STATE!" echo haptics=1
+echo  ERROR: DualSense Haptics could not be copied. Quit the game, then run
+echo         this installer again.
+exit /b 0
+
+:: Ends the haptics panel and bridge if they run from the game's
+:: DualSenseHaptics folder; the bridge keeps running after the game exits.
+:haptics_stop
+set "HDIR=!BINDIR!\DualSenseHaptics\"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith([IO.Path]::GetFullPath($env:HDIR), [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; Wait-Process -Id $_.ProcessId -Timeout 5 -ErrorAction SilentlyContinue }" >nul 2>nul
 exit /b 0
 
 :haptics_remove
@@ -339,6 +351,7 @@ call :haptics_owned
 if exist "!BINDIR!\xinput1_3.dll" if defined HOWNED del /Q "!BINDIR!\xinput1_3.dll" >nul 2>nul
 if not exist "!BINDIR!\DualSenseHaptics\" exit /b 0
 echo  Removing DualSense Haptics...
+call :haptics_stop
 rd /S /Q "!BINDIR!\DualSenseHaptics" >nul 2>nul
 if exist "!BINDIR!\DualSenseHaptics\" (
     echo  NOTE: Some haptics files are still in use. Close the haptics panel, or

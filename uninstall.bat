@@ -98,6 +98,10 @@ call :haptics_owned
 if defined HOWNED del /Q "%BINDIR%\xinput1_3.dll" >nul 2>nul
 if not exist "%BINDIR%\DualSenseHaptics\" exit /b 0
 echo  Removing DualSense Haptics...
+:: The haptics panel and bridge may run from the folder; the bridge keeps
+:: running after the game exits.
+set "HDIR=%BINDIR%\DualSenseHaptics\"
+"%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith([IO.Path]::GetFullPath($env:HDIR), [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; Wait-Process -Id $_.ProcessId -Timeout 5 -ErrorAction SilentlyContinue }" >nul 2>nul
 rd /S /Q "%BINDIR%\DualSenseHaptics" >nul 2>nul
 if exist "%BINDIR%\DualSenseHaptics\" (
     echo  NOTE: Some haptics files are still in use. Close the haptics panel, or
