@@ -88,7 +88,6 @@ STATE="$BIN/Freeplay.features"
 
 jump_warning() {
     echo
-    echo "  Superjump:"
     echo "  This permits you to fly over triggers that the game requires to advance,"
     echo "  which are not always marked on the map. If events aren't triggering after"
     echo "  flying over terrain, backtrack and walk; you probably missed an earlier"
@@ -97,7 +96,6 @@ jump_warning() {
 }
 intro_warning() {
     echo
-    echo "  Skip Intro:"
     echo "  WARNING: This component sometimes causes controller inputs to stall on"
     echo "  launch. If this happens, simply tab out and in or open and close the Steam"
     echo "  overlay to restore control."
@@ -206,6 +204,25 @@ if [ ${#PATCH_FLAGS[@]} -eq 0 ]; then
             case "$A" in [yY]) SEL[$k]=1; return ;; [nN]) return ;; esac
         done
     }
+    # Like ask, with the mod's note shown before the question and again
+    # (waiting for Enter) when it is chosen.
+    ask_warned() {
+        local k="$1" q def A
+        if [ -n "${INST[$k]:-}" ]; then
+            echo "  ${DESC[$k]} [installed]"; q="Keep? [Y/n]: "; def=y
+        else
+            echo "  ${DESC[$k]}"; q="Install? [y/N]: "; def=n
+        fi
+        "${k}_warning"
+        while true; do
+            read -r -p "  $q" A
+            A="${A:-$def}"
+            case "$A" in [yY]) SEL[$k]=1; break ;; [nN]) return ;; esac
+        done
+        "${k}_warning"
+        read -r -p "  Press Enter to continue..." _ || true
+        echo
+    }
     ask_items() {
         local q def A
         echo "  Item Hacks: [R] Battle Refill (any battle item you've found once tops off at the start of every battle)"
@@ -248,10 +265,9 @@ if [ ${#PATCH_FLAGS[@]} -eq 0 ]; then
     SEL_AUTOSAVE=""
     for k in essences heal mimans miracles compendium; do ask "$k"; done
     ask_items
-    ask jump
-    if [ -n "${SEL[jump]:-}" ]; then jump_warning; fi
-    for k in shop magatsuhi intro; do ask "$k"; done
-    if [ -n "${SEL[intro]:-}" ]; then intro_warning; fi
+    ask_warned jump
+    for k in shop magatsuhi; do ask "$k"; done
+    ask_warned intro
     for k in masakado newborn; do ask "$k"; done
     ask_autosave
 
@@ -314,7 +330,3 @@ fi
 echo
 echo "Done. Launch the game through Steam as usual."
 echo "To change or remove mods, run ./install.sh again."
-WARNED=""
-if grep -qx "jump=1" "$STATE" 2>/dev/null; then jump_warning; WARNED=1; fi
-if grep -qx "intro=1" "$STATE" 2>/dev/null; then intro_warning; WARNED=1; fi
-if [ -n "$WARNED" ]; then read -r -p "Press Enter to continue..." _ || true; fi

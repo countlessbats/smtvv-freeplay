@@ -111,12 +111,10 @@ call :ask mimans "Miman Reveal (all miman positions shown on map)"
 call :ask miracles "NG+ Miracles (unlock NG+ miracles early)"
 call :ask compendium "Free Compendium (compendium summons cost nothing)"
 call :ask_items
-call :ask jump "Superjump (hold jump to rise, faster air control)"
-if defined SEL_jump call :jump_warning
+call :ask_warned jump "Superjump (hold jump to rise, faster air control)"
 call :ask shop "Free Growth Items (Gospels, Grimoires, Sutras, Balms, Incenses free in shop)"
 call :ask magatsuhi "Full Magatsuhi (gauge full at the start of every battle)"
-call :ask intro "Skip Intro (no logos or opening movie; boot to title menu)"
-if defined SEL_intro call :intro_warning
+call :ask_warned intro "Skip Intro (no logos or opening movie; boot to title menu)"
 call :ask masakado "Masakado Unlock (powered-up Masakado fight without the Kiou Sword)"
 call :ask newborn "Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)"
 call :ask_autosave
@@ -164,8 +162,10 @@ set "K=%~1"
 set "D=%~2"
 set "SEL_%K%="
 set "Q=   !D! - install? [y/N]: "
+if not defined D set "Q=   Install? [y/N]: "
 set "DEF=n"
 if defined INST_%K% set "Q=   !D! [installed] - keep? [Y/n]: "
+if defined INST_%K% if not defined D set "Q=   Keep? [Y/n]: "
 if defined INST_%K% set "DEF=y"
 :ask_again
 set "A="
@@ -177,6 +177,20 @@ if /i "!A!"=="y" (
 )
 if /i "!A!"=="n" exit /b 0
 goto :ask_again
+
+:: call :ask_warned <key> "<description>" -- like :ask, with the mod's note
+:: shown before the question and again (with a pause) when it is chosen
+:ask_warned
+set "WD=   %~2"
+if defined INST_%~1 set "WD=   %~2 [installed]"
+echo !WD!
+call :%~1_warning
+call :ask %~1 ""
+if not defined SEL_%~1 exit /b 0
+call :%~1_warning
+pause
+echo.
+exit /b 0
 
 :ask_items
 echo    Item Hacks: [R] Battle Refill (any battle item you've found once tops off at the start of every battle)
@@ -248,24 +262,11 @@ echo.
 echo   To change or remove mods, run this installer again.
 echo  ============================================================
 echo.
-set "WARNED="
-%SystemRoot%\System32\findstr.exe /x /c:"jump=1" "%BINDIR%\Freeplay.features" >nul 2>&1
-if not errorlevel 1 (
-    call :jump_warning
-    set "WARNED=1"
-)
-%SystemRoot%\System32\findstr.exe /x /c:"intro=1" "%BINDIR%\Freeplay.features" >nul 2>&1
-if not errorlevel 1 (
-    call :intro_warning
-    set "WARNED=1"
-)
-if defined WARNED echo.
 pause
 exit /b 0
 
 :jump_warning
 echo.
-echo    Superjump:
 echo    This permits you to fly over triggers that the game requires to advance,
 echo    which are not always marked on the map. If events aren't triggering after
 echo    flying over terrain, backtrack and walk; you probably missed an earlier
@@ -275,7 +276,6 @@ exit /b 0
 
 :intro_warning
 echo.
-echo    Skip Intro:
 echo    WARNING: This component sometimes causes controller inputs to stall on
 echo    launch. If this happens, simply tab out and in or open and close the Steam
 echo    overlay to restore control.
