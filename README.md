@@ -2,7 +2,7 @@
 
 Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
 
-**Current version: 5.7.41**
+**Current version: 5.7.42**
 
 ## Features
 
@@ -61,6 +61,14 @@ Quality-of-life patch bundle for Shin Megami Tensei V: Vengeance.
     install time (1-20). That slot is overwritten after each battle, so pick
     one you don't use for anything else.
 
+14. **DualSense Haptics** (Windows only) - haptic effects on a DualSense
+    controller for battle hits by element, criticals, blocks and misses,
+    skills, press turns, Magatsuhi, field actions and menus, triggered by the
+    sounds the game plays. Haptics will only work with a wired DualSense
+    controller, or wirelessly with the utility DSX, available on Steam. Tune
+    each effect with the panel, `DualSenseHaptics\SMTVHaptics.exe` in the
+    game's `Project\Binaries\Win64` folder.
+
 ## Requirements
 
 - Shin Megami Tensei V: Vengeance — the **Steam** version, on Windows or
@@ -87,8 +95,8 @@ See **[INSTALL.md](INSTALL.md)** for the full step-by-step. Quick version below.
 3. Answer one question per mod (Reusable Essences, Leyline Auto-Heal, Miman
    Reveal, NG+ Miracles, Free Compendium, Item Hacks (Battle Refill or
    Stockpile), Superjump, Free Growth Items, Full Magatsuhi, Skip Intro,
-   Masakado Unlock, Newborn Clears Compendium, Autosave After Battle). Press
-   Enter to skip a mod.
+   Masakado Unlock, Newborn Clears Compendium, Autosave After Battle,
+   DualSense Haptics). Press Enter to skip a mod.
 
    Run `install.bat` again later to add or remove mods: it shows which ones
    are installed, offers to uninstall all of them first, and otherwise asks
@@ -119,7 +127,8 @@ chmod +x install.sh
 ./install.sh
 ```
 
-It asks about each mod in turn, the same questions as `install.bat`: Y to
+It asks about each mod in turn, the same questions as `install.bat` except
+DualSense Haptics, which needs Windows: Y to
 install a mod, Enter to skip it, and a save slot (1-20) for Autosave After
 Battle. Run it again later to add or remove mods; it shows which ones are
 installed and offers to uninstall all of them. If it can't find the game
@@ -163,7 +172,7 @@ New work should use `patch_smtvv_freeplay.py`.
 
 Run `uninstall.bat` (Windows) or `./uninstall.sh` (Linux), or run `install.bat`
 and answer Y to uninstall all. This restores the original executable and removes the
-NG+ miracle data pak.
+mod's data paks and, if installed, DualSense Haptics.
 
 You can also restore the executable through Steam:
 
@@ -292,6 +301,16 @@ fall. Pressing jump in mid-air starts a new climb from the current height. While
 airborne, the fall-speed cap that governs air movement is raised by 50%, and
 the input and rotation damping applied in the air is lifted so the character
 turns nearly instantly.
+
+### DualSense Haptics
+
+Installed as `xinput1_3.dll`, which the game loads as its XInput library and
+which forwards XInput to the system's, plus the `DualSenseHaptics` folder; the
+executable is not patched. The plugin watches the sound cues the game starts
+and plays the effect `DualSenseHaptics\cue-map.txt` assigns to each, through
+a small bridge program that drives the controller's actuators. The installer
+leaves an `xinput1_3.dll` that belongs to another mod in place and skips
+DualSense Haptics. Settings in `SMTVHaptics.ini` are kept when reinstalling.
 
 ### NG+ Miracles From Start
 

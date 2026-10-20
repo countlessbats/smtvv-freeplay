@@ -40,19 +40,22 @@ set "STATE=!BINDIR!\Freeplay.features"
 for %%K in (%BOOL_KEYS%) do set "INST_%%K="
 set "INST_itemhacks="
 set "INST_autosave="
+set "INST_haptics="
 if exist "!STATE!" (
     for /f "usebackq tokens=1,2 delims==" %%A in ("!STATE!") do (
         for %%K in (%BOOL_KEYS%) do if /i "%%A"=="%%K" if "%%B"=="1" set "INST_%%K=1"
         if /i "%%A"=="itemhacks" if /i "%%B"=="refill" set "INST_itemhacks=refill"
         if /i "%%A"=="itemhacks" if /i "%%B"=="stockpile" set "INST_itemhacks=stockpile"
         if /i "%%A"=="autosave" for /l %%N in (1,1,20) do if "%%B"=="%%N" set "INST_autosave=%%N"
+        if /i "%%A"=="haptics" if "%%B"=="1" set "INST_haptics=1"
     )
 )
 set /a NINST=0
 for %%K in (%BOOL_KEYS%) do if defined INST_%%K set /a NINST+=1
 if defined INST_itemhacks set /a NINST+=1
 if defined INST_autosave set /a NINST+=1
-set /a NALL=13
+if defined INST_haptics set /a NINST+=1
+set /a NALL=14
 
 :: An install that predates the feature record: the executable differs from
 :: the backup, or a Freeplay data pak is present.
@@ -118,6 +121,7 @@ call :ask_warned intro "Skip Intro (no logos or opening movie; boot to title men
 call :ask masakado "Masakado Unlock (powered-up Masakado fight without the Kiou Sword)"
 call :ask newborn "Newborn Clears Compendium (NG+ Newborn starts with an empty compendium)"
 call :ask_autosave
+call :ask_warned haptics "DualSense Haptics (haptic effects for battles, skills, field and menus)"
 
 set "FLAGS="
 set /a NSEL=0
@@ -138,6 +142,8 @@ if defined SEL_autosave (
     set /a NSEL+=1
     set "FLAGS=!FLAGS! --autosave-slot !SEL_autosave!"
 )
+if !NSEL! equ 0 if defined SEL_haptics goto :haptics_only
+if defined SEL_haptics set /a NSEL+=1
 if !NSEL! equ 0 (
     echo.
     echo   No mods chosen.
@@ -254,7 +260,22 @@ if exist "%BINDIR%\%EXE%.patched" (
 if exist "%BINDIR%\Freeplay.features.new" move /Y "%BINDIR%\Freeplay.features.new" "%BINDIR%\Freeplay.features" >nul
 
 call :remove_legacy_superjump
+if defined SEL_haptics (
+    call :haptics_install
+) else (
+    if defined INST_haptics call :haptics_remove
+)
+goto :done
 
+:: Only DualSense Haptics chosen: no executable patches or data paks.
+:haptics_only
+echo.
+call :remove_exe_mods
+del /Q "!BINDIR!\Freeplay.features" "!BINDIR!\Freeplay.features.new" >nul 2>nul
+call :remove_legacy_superjump
+call :haptics_install
+
+:done
 echo.
 echo  ============================================================
 echo   Done - mods installed.
@@ -282,6 +303,64 @@ echo    overlay to restore control.
 echo.
 exit /b 0
 
+:haptics_warning
+echo.
+echo    Haptics will only work with a wired DualSense controller, or wirelessly
+echo    with the utility DSX, available on Steam.
+echo.
+exit /b 0
+
+:: --- DualSense Haptics: its xinput1_3.dll and the DualSenseHaptics folder ---
+:haptics_install
+set "HSRC=%~dp0haptics"
+call :haptics_owned
+if exist "!BINDIR!\xinput1_3.dll" if not defined HOWNED (
+    echo  NOTE: xinput1_3.dll in the game folder belongs to another mod.
+    echo        DualSense Haptics was not installed.
+    exit /b 0
+)
+echo  Installing DualSense Haptics...
+:: Settings and logs in the folder are kept; unchanged files are skipped.
+"%SystemRoot%\System32\robocopy.exe" "!HSRC!\DualSenseHaptics" "!BINDIR!\DualSenseHaptics" /E /R:2 /W:1 /NJH /NJS /NFL /NDL /NP >nul
+if errorlevel 8 goto :haptics_failed
+copy /Y "!HSRC!\xinput1_3.dll" "!BINDIR!\xinput1_3.dll" >nul
+if errorlevel 1 goto :haptics_failed
+>>"!STATE!" echo haptics=1
+echo   The haptics panel is DualSenseHaptics\SMTVHaptics.exe in the game's
+echo   Project\Binaries\Win64 folder.
+exit /b 0
+:haptics_failed
+echo  ERROR: DualSense Haptics could not be copied. Quit the game and the
+echo         haptics panel, then run this installer again.
+exit /b 0
+
+:haptics_remove
+call :haptics_owned
+if exist "!BINDIR!\xinput1_3.dll" if defined HOWNED del /Q "!BINDIR!\xinput1_3.dll" >nul 2>nul
+if not exist "!BINDIR!\DualSenseHaptics\" exit /b 0
+echo  Removing DualSense Haptics...
+rd /S /Q "!BINDIR!\DualSenseHaptics" >nul 2>nul
+if exist "!BINDIR!\DualSenseHaptics\" (
+    echo  NOTE: Some haptics files are still in use. Close the haptics panel, or
+    echo        restart Windows, then delete !BINDIR!\DualSenseHaptics.
+)
+exit /b 0
+
+:: Sets HOWNED when the game folder's xinput1_3.dll is the haptics loader.
+:haptics_owned
+set "HOWNED="
+if not exist "!BINDIR!\xinput1_3.dll" exit /b 0
+call :sha256 "!BINDIR!\xinput1_3.dll" HCUR
+set "HCUR=!HCUR: =!"
+for %%R in ("!BINDIR!\DualSenseHaptics\loader.sha256" "%~dp0haptics\DualSenseHaptics\loader.sha256") do (
+    if exist "%%~R" (
+        set "HREC="
+        set /p "HREC=" <"%%~R"
+        if /i "!HCUR!"=="!HREC!" set "HOWNED=1"
+    )
+)
+exit /b 0
+
 :uninstall
 set "EXE=SMT5V-Win64-Shipping.exe"
 if not defined BINDIR call :locate
@@ -291,6 +370,18 @@ if not defined BINDIR (
     pause
     exit /b 1
 )
+call :remove_exe_mods
+if defined INST_haptics call :haptics_remove
+if exist "!BINDIR!\xinput1_3.dll" (
+    call :remove_legacy_superjump
+)
+del /Q "!BINDIR!\Freeplay.features" "!BINDIR!\Freeplay.features.new" >nul 2>nul
+echo.
+pause
+exit /b 0
+
+:: Restores the original executable and removes the data paks.
+:remove_exe_mods
 if exist "!BINDIR!\%EXE%.original" (
     echo  Restoring original executable...
     copy /Y "!BINDIR!\%EXE%.original" "!BINDIR!\%EXE%" >nul
@@ -327,16 +418,12 @@ if exist "!GAMEDIR!\Project\Content\Paks\pakchunk93_FreeplayStockpile_P.pak" (
     echo  Removing Stockpile data pak...
     del /Q "!GAMEDIR!\Project\Content\Paks\pakchunk93_FreeplayStockpile_P.pak" >nul 2>nul
 )
-if exist "!BINDIR!\xinput1_3.dll" (
-    call :remove_legacy_superjump
-)
-del /Q "!BINDIR!\Freeplay.features" "!BINDIR!\Freeplay.features.new" >nul 2>nul
-echo.
-pause
 exit /b 0
 
 :remove_legacy_superjump
 if not exist "!BINDIR!\xinput1_3.dll" exit /b 0
+call :haptics_owned
+if defined HOWNED exit /b 0
 set "LEGACY_SUPERJUMP_SHA256=4D51DC377C15006EE4903DE265CCDA3514900A059D2019498B66EE9DCC56B819"
 set "MATCHED_SUPERJUMP="
 for /f "usebackq delims=" %%H in (`certutil -hashfile "!BINDIR!\xinput1_3.dll" SHA256 ^| findstr /i "!LEGACY_SUPERJUMP_SHA256!"`) do set "MATCHED_SUPERJUMP=1"
